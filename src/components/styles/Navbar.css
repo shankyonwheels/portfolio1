@@ -45,6 +45,11 @@
   font-size: 14px;
   letter-spacing: 0.2px;
 }
+.nav-logo {
+  height: 30px;
+  object-fit: contain;
+  max-width: 120px;
+}
 @media only screen and (min-width: 500px) {
   .header {
     padding: 20px 0px;
@@ -59,6 +64,10 @@
   }
   .navbar-title {
     font-size: 16px;
+  }
+  .nav-logo {
+    height: 40px;
+    max-width: none;
   }
 }
 @media only screen and (min-width: 900px) {

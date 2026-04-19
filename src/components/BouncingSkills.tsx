@@ -183,7 +183,7 @@ const BouncingSkills = () => {
   }, []);
 
   return (
-    <div className="bouncing-skills section-container" style={{ height: "60vh", minHeight: "600px", width: "100%", paddingBottom: "50px", marginTop: "20px", position: "relative", overflow: "hidden" }}>
+    <div className="bouncing-skills" style={{ height: "60vh", minHeight: "600px", width: "100%", paddingBottom: "50px", marginTop: "20px", position: "relative", overflow: "hidden" }}>
       <h2 className="title" style={{ fontSize: "clamp(2rem, 5vw, 4rem)", marginBottom: "2rem", textAlign: "center", textTransform: "none", width: "100%", zIndex: 10, position: "relative" }}>
         Skills I Recruit For
       </h2>

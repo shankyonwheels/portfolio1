@@ -23,7 +23,7 @@
   color: var(--accentColor);
 }
 
-.about-me p {
+.about-me .para {
   font-size: clamp(1.2rem, 4vw, 1.8rem);
   font-weight: 500;
   line-height: 1.5;

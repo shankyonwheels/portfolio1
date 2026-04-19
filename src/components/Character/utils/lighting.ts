@@ -51,7 +51,7 @@ const setLighting = (scene: THREE.Scene) => {
       duration: duration,
       ease: ease,
     });
-    gsap.to(directionalLight,
+    gsap.fromTo(directionalLight,
       { intensity: 0 }, { intensity: 1.2, duration: duration, ease: ease }
     );
     gsap.to(".character-rim", {

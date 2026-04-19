@@ -27,8 +27,8 @@ const imageUrls = [
   "/images/python.png",
   "/images/java.png",
   "/images/c.png",
-  "/images/c++.png",
-  "/images/C#.png",
+  "/images/cpp.png",
+  "/images/csharp.png",
   "/images/download.png",
   "/images/css.png",
   "/images/html.png",
@@ -42,9 +42,9 @@ const imageUrls = [
   "/images/postgres.png",
   "/images/sqlserver.png",
   "/images/Splunk.png",
-  "/images/IBM QRadar.png",
+  "/images/qradar.png",
   "/images/ArcSight.png",
-  "/images/Burp Suite.png",
+  "/images/burpsuite.png",
   "/images/Qualys.png",
 ];
 const textures = imageUrls.map((url) => textureLoader.load(url));

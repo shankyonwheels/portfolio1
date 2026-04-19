@@ -46,7 +46,7 @@
 .resume-button {
   position: absolute;
   z-index: 99;
-  display: flex;
+  display: none;
   gap: 5px;
   bottom: 40px;
   right: 0;
@@ -95,6 +95,7 @@ div.resume-button span {
     transform: none;
     font-size: 20px;
     line-height: 20px;
+    display: flex;
   }
   div.resume-button span {
     font-size: 23px;

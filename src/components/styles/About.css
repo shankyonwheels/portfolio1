@@ -24,10 +24,15 @@
 }
 
 .about-me p {
-  font-size: 33px;
-  font-weight: 600;
-  line-height: 36px;
-  letter-spacing: 1px;
+  font-size: clamp(1.2rem, 4vw, 1.8rem);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 10;
+  background: rgba(0,0,0,0.4);
+  padding: 10px;
+  border-radius: 8px;
 }
 
 @media only screen and (min-width: 600px) {

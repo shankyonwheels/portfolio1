@@ -18,12 +18,12 @@ const Landing = ({ children }: PropsWithChildren) => {
             <h3 style={{ fontSize: "clamp(1.2rem, 3.5vw, 2rem)", fontWeight: 400, margin: 0, textTransform: "uppercase", letterSpacing: "2px" }}>
               Account Manager <br /> Lead IT Recruiter
             </h3>
-            <h2 style={{ fontSize: "clamp(1.2rem, 2vw, 2rem)", lineHeight: 1.2, margin: 0, textTransform: "none" }}>
+            <h3 style={{ fontSize: "clamp(1.2rem, 2vw, 2rem)", lineHeight: 1.2, margin: 0, textTransform: "none" }}>
               Global IT Recruitment
-            </h2>
-            <h2 style={{ fontSize: "clamp(1.2rem, 2vw, 2rem)", lineHeight: 1.2, margin: 0, color: "var(--accentColor)", textTransform: "none" }}>
+            </h3>
+            <h3 style={{ fontSize: "clamp(1.2rem, 2vw, 2rem)", lineHeight: 1.2, margin: 0, color: "var(--accentColor)", textTransform: "none" }}>
               Cybersecurity & Infra
-            </h2>
+            </h3>
           </div>
         </div>
         {children}

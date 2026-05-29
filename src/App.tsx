@@ -5,6 +5,7 @@ import "./App.css";
 
 const CharacterModel = lazy(() => import("./components/Character"));
 const MainContainer = lazy(() => import("./components/MainContainer"));
+const RecruiterChatbot = lazy(() => import("./components/RecruiterChatbot"));
 import { LoadingProvider } from "./context/LoadingProvider";
 
 const App = () => {
@@ -19,6 +20,9 @@ const App = () => {
           </MainContainer>
         </Suspense>
       </LoadingProvider>
+      <Suspense>
+        <RecruiterChatbot />
+      </Suspense>
       <Analytics />
       <SpeedInsights />
     </>

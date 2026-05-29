@@ -43,7 +43,7 @@ const Navbar = () => {
     <>
       <div className="header">
         <a href="/#" className="navbar-title" data-cursor="disable">
-          <img src="/images/softenger.png" alt="Softenger" className="nav-logo" />
+          <img src="images/sd.png" alt="Softenger" className="nav-logo" />
         </a>
         <a
           href="mailto:sdwivedi353@gmail.com"

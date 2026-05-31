@@ -26,3 +26,7 @@ dist-ssr
 
 backup/
 .env
+.vercel
+.env*
+.env.local
+.env.*.local

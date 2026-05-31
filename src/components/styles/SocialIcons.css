@@ -23,7 +23,6 @@
 }
 .social-icons a:hover {
   color: var(--backgroundColor);
-  /* transform: scale(1.2); */
 }
 .social-icons span {
   width: 50px;
@@ -44,12 +43,12 @@
   transition: transform 0.3s ease-out;
 }
 .resume-button {
-  position: absolute;
-  z-index: 99;
-  display: none;
+  position: fixed;
+  z-index: 9998;
+  display: flex;
   gap: 5px;
-  bottom: 40px;
-  right: 0;
+  bottom: 20px;
+  right: 20px;
   width: auto;
   text-wrap: nowrap;
   letter-spacing: 4px;
@@ -61,6 +60,7 @@
   transition: 0.5s;
   transform-origin: left bottom;
   transform: translateX(100%) rotateZ(-90deg);
+  white-space: nowrap;
 }
 .resume-button:hover {
   color: #fff;
@@ -95,10 +95,17 @@ div.resume-button span {
     transform: none;
     font-size: 20px;
     line-height: 20px;
-    display: flex;
   }
   div.resume-button span {
     font-size: 23px;
     margin-top: -1.5px;
+  }
+}
+@media only screen and (max-width: 767px) {
+  .resume-button {
+    transform: none;
+    right: 80px;
+    bottom: 20px;
+    z-index: 10000;
   }
 }

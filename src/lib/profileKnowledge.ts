@@ -1,10 +1,10 @@
-export const CURRENT_CTC = "[11 LPA]";
-export const EXPECTED_CTC = "[16 LPA]";
-export const NOTICE_PERIOD = "[2 Months ]";
-export const PREFERRED_LOCATION = "[Pune]";
-export const WORK_MODE_PREFERENCE = "[Remote / Hybrid / Open to discuss]";
-export const OPEN_TO_RELOCATION = "[Open]";
-export const JOINING_AVAILABILITY = "[ As soon as possible]";
+export const CURRENT_CTC = "11 LPA";
+export const EXPECTED_CTC = "16 LPA";
+export const NOTICE_PERIOD = "2 Months";
+export const PREFERRED_LOCATION = "Pune";
+export const WORK_MODE_PREFERENCE = "Remote / Hybrid / Open to discuss";
+export const OPEN_TO_RELOCATION = "Open to relocation";
+export const JOINING_AVAILABILITY = "As soon as possible";
 
 export const SHASHANK_RESUME = `
 Candidate Name: Shashank Dwivedi

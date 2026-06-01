@@ -38,7 +38,7 @@ function getKnowledgeAnswer(message: string): string | null {
   if (lower.includes('total experience') || lower.includes('experience') || lower.includes('years')) {
     return `I have 6+ years of recruitment experience across US IT recruitment, global IT hiring, staffing, consulting, account management, and stakeholder management. I have worked with Softenger, GP Aarogya Healthcare Technologies, Qualified Recruiter / Prestige Staffing, IMS / Experis, Mindlance, and Head Field Solution Pvt Ltd.`;
   }
-  if (lower.includes('tell me about yourself') || lower.includes('about yourself') || lower.includes('who are')) {
+  if (lower.includes('tell me about yourself') || lower.includes('about yourself') || lower.includes('who are') || lower.includes('about shashank') || lower.includes('summary')) {
     return `I am ${knowledgeBase.personalInfo.name}, a ${knowledgeBase.personalInfo.currentRole} based in ${knowledgeBase.personalInfo.location}. I have 6+ years of recruitment experience across US IT recruitment, global IT hiring, staffing, consulting, account management, and stakeholder management. I currently lead a team of 15 recruiters at Softenger and handle Cybersecurity and IT Infrastructure hiring.`;
   }
   if (lower.includes('join') || lower.includes('joining') || lower.includes('when can')) {
@@ -53,10 +53,10 @@ function getKnowledgeAnswer(message: string): string | null {
   if (lower.includes('client') || (lower.includes('worked with') && !lower.includes('companies') && !lower.includes('organizations'))) {
     return `I have worked with clients like HPE, Kyndryl, Cadence, Teradyne, Credence, Atkins, Oracle, Amdocs, Tanla Platforms, Caterpillar, Cox Automotive, Bank of America, Wells Fargo, Citigroup, Morgan Stanley, Meta, EY, Hexaware, Charles Schwab, Google, Bayer.`;
   }
-  if (lower.includes('ats') || lower.includes('vms') || lower.includes('tools') || lower.includes('portal') || lower.includes('platform') || lower.includes('dice') || lower.includes('monster') || lower.includes('careerbuilder') || lower.includes('indeed')) {
+  if (lower.includes('ats') || lower.includes('vms') || (lower.includes('tools') && !lower.includes('job')) || lower.includes('portal') || lower.includes('platform') || lower.includes('dice') || lower.includes('monster') || lower.includes('careerbuilder') || lower.includes('indeed') || lower.includes('what tools')) {
     return `I have used ATS/VMS tools including Bullhorn, JobDiva, Ceipal, Fieldglass, Beeline, TalentOrb, and Orwin. I have also used job portals like Dice, Monster, CareerBuilder, Indeed, and LinkedIn Recruiter.`;
   }
-  if (lower.includes('skill') || lower.includes('strength') || lower.includes('strongest')) {
+  if (lower.includes('skill') || lower.includes('strength') || lower.includes('strongest') || lower.includes('skills') || lower.includes('what skills')) {
     return `My key skills include: End-to-end recruitment, Boolean Search, X-Ray Search, LinkedIn Recruiter, Bullhorn, JobDiva, Ceipal, Fieldglass, account management, stakeholder management, client handling, global IT hiring, and team leadership.`;
   }
   if (lower.includes('soc analyst') || (lower.includes('soc') && !lower.includes('soccer'))) {
@@ -86,7 +86,7 @@ function getKnowledgeAnswer(message: string): string | null {
   if (lower.includes('achievement') || lower.includes('why hire') || lower.includes('why should')) {
     return `I have managed and led a team of 15 recruiters at Softenger. I drive end-to-end recruitment delivery across US, Europe, Middle East, Singapore, and Malaysia. I handle Cybersecurity and IT Infrastructure hiring. I maintain a 500+ candidate pipeline. My strength is combining recruitment expertise with stakeholder management and account handling.`;
   }
-  if (lower.includes('global hiring') || lower.includes('countries') || lower.includes('regions recruited') || (lower.includes('us') && lower.includes('recruitment')) || (lower.includes('us') && lower.includes('it'))) {
+  if (lower.includes('global hiring') || (lower.includes('global') && lower.includes('hiring')) || lower.includes('countries') || lower.includes('regions recruited') || (lower.includes('us') && (lower.includes('recruitment') || lower.includes('it'))) || lower.includes('handled global')) {
     return `Yes, I have handled global IT hiring across the US, Europe, Middle East, Singapore, and Malaysia.`;
   }
   if (lower.includes('stakeholder') || lower.includes('manage stakeholders')) {
@@ -151,35 +151,66 @@ async function getOpenRouterResponse(message: string): Promise<string> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { message } = (req.body || {}) as { message?: string; history?: { role: 'user' | 'assistant'; content: string }[] };
-
-  if (!message || typeof message !== 'string') {
-    return res.status(400).json({ error: 'Message is required' });
-  }
-
-  if (message.length > MAX_MESSAGE_LENGTH) {
-    return res.status(400).json({ error: 'Message too long' });
-  }
-
-  const kbAnswer = getKnowledgeAnswer(message);
-  if (kbAnswer) {
-    return res.status(200).json({ answer: kbAnswer });
-  }
-
   try {
-    const aiAnswer = await getOpenRouterResponse(message);
-    return res.status(200).json({ 
-      answer: `${aiAnswer} This is general knowledge, not specific information from Shashank's resume/profile.` 
+    console.log("Chat API request received:", {
+      method: req.method,
+      hasMessage: Boolean(req.body?.message),
+      messagePreview: typeof req.body?.message === "string" ? req.body.message.slice(0, 80) : null
     });
-  } catch (error) {
-    const errorObj = error as { status?: number; message?: string };
-    if (errorObj.status === 504) {
-      return res.status(504).json({ error: 'Request timeout' });
+
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
     }
-    return res.status(500).json({ error: 'Unable to get response' });
+
+    const { message } = (req.body || {}) as { message?: string; history?: { role: 'user' | 'assistant'; content: string }[] };
+
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({ error: 'Message too long' });
+    }
+
+    // Try knowledge base first
+    try {
+      const kbAnswer = getKnowledgeAnswer(message);
+      console.log("Knowledge lookup result:", {
+        matched: Boolean(kbAnswer),
+        source: kbAnswer ? "knowledge_base" : "fallback"
+      });
+
+      if (kbAnswer) {
+        return res.status(200).json({
+          answer: kbAnswer,
+          source: "knowledge_base"
+        });
+      }
+    } catch (kbErr) {
+      console.error("Knowledge base error:", kbErr instanceof Error ? kbErr.message : String(kbErr));
+      // Continue to fallback instead of failing
+    }
+
+    console.log("OpenRouter config:", {
+      hasApiKey: Boolean(process.env.OPENROUTER_API_KEY),
+      model: process.env.OPENROUTER_MODEL || OPENROUTER_MODEL
+    });
+
+    try {
+      const aiAnswer = await getOpenRouterResponse(message);
+      return res.status(200).json({
+        answer: `${aiAnswer} This is general knowledge, not specific information from Shashank's resume/profile.`
+      });
+    } catch (aiErr) {
+      console.error("OpenRouter error:", aiErr instanceof Error ? aiErr.message : String(aiErr));
+      return res.status(502).json({
+        error: "AI fallback failed. Resume-based answers are still available."
+      });
+    }
+  } catch (err) {
+    console.error("Chat API error:", err instanceof Error ? err.message : String(err));
+    return res.status(500).json({
+      error: "Something went wrong in the chatbot API. Please try again later."
+    });
   }
 }

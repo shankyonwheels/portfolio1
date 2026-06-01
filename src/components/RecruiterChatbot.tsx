@@ -98,13 +98,17 @@ const RecruiterChatbot: React.FC = () => {
   const speechCancelRef = useRef<boolean>(false);
   const speechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const finalTranscriptSentRef = useRef<boolean>(false);
+  const handleSendRef = useRef<((text: string) => void) | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('shashank_chat_history');
     if (saved) {
       try {
         setMessages(JSON.parse(saved));
-      } catch {}
+      } catch {
+        // Failed to parse chat history, continue with empty array
+      }
     }
   }, []);
 
@@ -148,6 +152,23 @@ const RecruiterChatbot: React.FC = () => {
       return [...ROLE_SUGGESTIONS];
     }
     return [...GENERAL_SUGGESTIONS];
+  };
+
+  const cleanAssistantAnswer = (answer: string): string => {
+    let cleaned = answer;
+    const historyPatterns = [
+      /previously you asked[:\s][\s\S]*?[.]/gi,
+      /you asked[:\s][\s\S]*?[.]/gi,
+      /last time you asked[:\s][\s\S]*?[.]/gi,
+      /before you asked[:\s][\s\S]*?[.]/gi,
+      /as i mentioned[,][\s\S]*?[.]/gi,
+      /as mentioned[,][\s\S]*?[.]/gi,
+    ];
+    for (const pattern of historyPatterns) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+    cleaned = cleaned.replace(/\s{3,}/g, ' ').trim();
+    return cleaned;
   };
 
   const speakText = useCallback((text: string) => {
@@ -253,18 +274,25 @@ const RecruiterChatbot: React.FC = () => {
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const transcript = event.results[0][0].transcript;
         setInputValue(transcript);
-        if (event.results[0].isFinal) {
+        if (event.results[0].isFinal && !finalTranscriptSentRef.current) {
+          finalTranscriptSentRef.current = true;
           setIsListening(false);
-          handleSend(transcript);
+          handleSendRef.current?.(transcript);
         }
       };
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
+        finalTranscriptSentRef.current = false;
         if (event.error === 'not-allowed') {
           alert('Microphone permission denied. Please allow it or use text chat.');
         }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        finalTranscriptSentRef.current = false;
       };
 
       recognitionRef.current = recognition;
@@ -273,7 +301,9 @@ const RecruiterChatbot: React.FC = () => {
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
+      finalTranscriptSentRef.current = false;
     } else if (recognitionRef.current) {
+      finalTranscriptSentRef.current = false;
       try {
         recognitionRef.current.start();
         setIsListening(true);
@@ -301,23 +331,32 @@ const RecruiterChatbot: React.FC = () => {
         })
       });
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
-        throw new Error('API response error');
+        const errorMsg = data?.error || `API failed with status ${response.status}`;
+        throw new Error(errorMsg);
       }
 
-      const data = await response.json();
-      const answer = data.answer || 'Sorry, I am unable to respond at the moment.';
+      const rawAnswer = data.answer || 'Sorry, I am unable to respond at the moment.';
+      const cleanAnswer = cleanAssistantAnswer(rawAnswer);
       
-      setMessages(prev => [...prev, { role: 'assistant', content: answer }]);
-      speakText(answer);
+      setMessages(prev => [...prev, { role: 'assistant', content: cleanAnswer }]);
+      speakText(cleanAnswer);
 
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please try again later.' }]);
+    } catch (err) {
+      console.error('Chat error:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Connection error. Please try again later.';
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
     } finally {
       setIsLoading(false);
     }
-  }, [inputValue, messages, speakText, suggestedQuestions]);
-  
+  }, [inputValue, speakText, suggestedQuestions]);
+
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
+
   const clearChat = () => {
     setMessages([]);
     localStorage.removeItem('shashank_chat_history');

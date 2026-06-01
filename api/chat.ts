@@ -14,40 +14,6 @@ function normalizeQuery(query: string): string {
     .trim();
 }
 
-function detectIntent(message: string, _history: { role: string; content: string }[] = []): 'knowledge' | 'general' | 'fallback' {
-  const lower = normalizeQuery(message);
-  
-  const knowledgePatterns = [
-    /current\s*ctc|ctc\s*is|salary|compensation|package/i,
-    /expected\s*ctc|expected\s*salary|salary\s*expectation|how\s*much\s*is\s*he\s*expec/i,
-    /notice|notice\s*period|joining|when\s*can/i,
-    /location|where\s*is|based|located|pune/i,
-    /current\s*role|present\s*role|working\s*as|working\s*on|job|position/i,
-    /experience|total\s*experience|work\s*experience|career/i,
-    /about\s*you|tell\s*me\s*about|who\s*are/i,
-    /companies|employers|organizations|worked\s*with/i,
-    /client|clients|hpe|kyndryl|cadence|teradyne/i,
-    /ats|vms|tools|platform|portal|dice|monster|careerbuilder|indeed/i,
-    /skill|skills|strength|strongest/i,
-    /cybersecurity|soc|soc\s*analyst|vapt|noc|network\s*security|sicherheit|siem/i,
-    /it\s*infra|infrastructure|backup|storage|dba|cloud|network|security\s*engineer/i,
-    /education|degree|college|qualification|university/i,
-    /certification|certifications|certified/i,
-    /achievement|why\s*.*hire|why\s*hire|why\s*should/i,
-    /global\s*hiring|countries|regions|us\s*recruitment|us\s*it/i,
-    /stakeholder|account\s*management|vendor|rate\s*negotiation|contract/i,
-    /managed\s*a\s*team|team\s*leader|leadership/i
-  ];
-  
-  for (const pattern of knowledgePatterns) {
-    if (pattern.test(lower)) {
-      return 'knowledge';
-    }
-  }
-  
-  return 'general';
-}
-
 function getKnowledgeAnswer(message: string): string | null {
   const lower = normalizeQuery(message);
   

@@ -275,75 +275,102 @@ const RecruiterChatbot: React.FC = () => {
     }
   }, [isListening, dispatchSpeaking]);
 
-  // ── TTS: speak cleaned text ───────────────────────────────────────
+  // ── TTS: speak full cleaned answer — no truncation ───────────────
   const speakText = useCallback((text: string) => {
     if (!window.speechSynthesis || !text.trim()) return;
 
-    // Clean the text before speaking
+    // Clean fully — strips markdown, bullets, emojis, debug labels, URLs
     const cleanedText = cleanTextForSpeech(text);
     if (!cleanedText.trim()) return;
 
-    // Reset state
-    speechCancelRef.current = false;
+    // Cancel any currently running speech before starting new
+    speechCancelRef.current = true;
     window.speechSynthesis.cancel();
     if (speechTimeoutRef.current) {
       clearTimeout(speechTimeoutRef.current);
       speechTimeoutRef.current = null;
     }
+    speechCancelRef.current = false; // reset for new session
 
-    // Split on sentence boundaries for chunked delivery
-    const sentences = cleanedText
+    // Primary split: sentence boundaries (.!?)
+    const primaryChunks = cleanedText
       .split(/(?<=[.!?])\s+/)
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
-    if (sentences.length === 0) return;
+    // Secondary pass: split any chunk >240 chars on clause boundaries (,;:)
+    const maxLen = 240;
+    const chunks: string[] = [];
+    for (const chunk of primaryChunks) {
+      if (chunk.length <= maxLen) {
+        chunks.push(chunk);
+      } else {
+        const parts = chunk.split(/(?<=[,;:])\s+/);
+        let buf = '';
+        for (const part of parts) {
+          const candidate = buf ? buf + ' ' + part : part;
+          if (candidate.length > maxLen && buf) {
+            chunks.push(buf.trim());
+            buf = part;
+          } else {
+            buf = candidate;
+          }
+        }
+        if (buf.trim()) chunks.push(buf.trim());
+      }
+    }
+
+    if (chunks.length === 0) return;
 
     let index = 0;
+    let sessionStarted = false; // track if ai-speaking=true has been dispatched
+
     const speakNext = () => {
-      if (speechCancelRef.current || index >= sentences.length) {
+      if (speechCancelRef.current || index >= chunks.length) {
         dispatchSpeaking(false);
         return;
       }
 
-      const utt = new SpeechSynthesisUtterance(sentences[index]);
+      const utt = new SpeechSynthesisUtterance(chunks[index]);
       utt.lang = 'en-US';
-      utt.rate = 1.08;    // slightly faster than default, still natural
-      utt.pitch = 1.00;   // neutral pitch
+      utt.rate = 1.08;
+      utt.pitch = 1.00;
       utt.volume = 1.0;
       if (selectedVoiceRef.current) utt.voice = selectedVoiceRef.current;
 
-      // Dispatch speaking=true only when audio actually starts
+      // Dispatch ai-speaking=true ONLY on the very first chunk starting
       utt.onstart = () => {
-        if (!speechCancelRef.current) {
+        if (!speechCancelRef.current && !sessionStarted) {
+          sessionStarted = true;
           dispatchSpeaking(true);
         }
       };
 
       utt.onend = () => {
-        if (speechCancelRef.current) {
-          dispatchSpeaking(false);
-          return;
-        }
+        if (speechCancelRef.current) { dispatchSpeaking(false); return; }
         index++;
-        speechTimeoutRef.current = setTimeout(speakNext, 40);
+        speechTimeoutRef.current = setTimeout(speakNext, 150);
       };
 
-      utt.onerror = () => {
-        if (speechCancelRef.current) {
+      utt.onerror = (e) => {
+        const err = (e as SpeechSynthesisErrorEvent).error;
+        // 'interrupted' = normal cancel, not a real error
+        if (speechCancelRef.current || err === 'interrupted') {
           dispatchSpeaking(false);
           return;
         }
+        // Any other error: skip chunk and continue
         index++;
-        speechTimeoutRef.current = setTimeout(speakNext, 40);
+        speechTimeoutRef.current = setTimeout(speakNext, 150);
       };
 
       window.speechSynthesis.speak(utt);
     };
 
-    // Small delay for browser to be ready
+    // Short delay so cancel() has time to clear the queue
     speechTimeoutRef.current = setTimeout(speakNext, 80);
   }, [dispatchSpeaking]);
+
 
   // ── Voice input ───────────────────────────────────────────────────
   const toggleListen = useCallback(() => {
@@ -433,10 +460,9 @@ const RecruiterChatbot: React.FC = () => {
         setSuggestions(data.suggestions);
       }
 
-      // Speak the full answer — cleanTextForSpeech is applied inside speakText
-      // Use speakable if provided (already shortened for voice), else full answer
-      const toSpeak = data.speakable || rawAnswer;
-      speakText(toSpeak);
+      // Speak the full raw answer — cleanTextForSpeech() inside speakText handles all stripping
+      // Always use rawAnswer (full), never the server-side speakable (which may differ in length)
+      speakText(rawAnswer);
 
     } catch (err) {
       console.error('Chat error:', err);

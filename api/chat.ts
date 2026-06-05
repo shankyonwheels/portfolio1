@@ -407,37 +407,24 @@ function getSuggestions(intent: Intent, usedQuestions: string[]): string[] {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// SPEAKABLE VERSION — clean text for TTS (no markdown, concise)
+// SPEAKABLE VERSION — strip markdown for TTS (no truncation)
 // ══════════════════════════════════════════════════════════════════════
-function makeSpeakable(text: string, intent: Intent): string {
-  // Remove markdown formatting
-  let clean = text
+function makeSpeakable(text: string): string {
+  // Strip markdown formatting only — do NOT truncate
+  return text
     .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold** → bold
     .replace(/\*(.+?)\*/g, '$1')        // *italic* → italic
     .replace(/#{1,6}\s/g, '')           // ## headers
-    .replace(/`(.+?)`/g, '$1')          // `code`
-    .replace(/\|[^|]+\|/g, '')          // | table |
-    .replace(/[-*]\s+/g, '')            // bullet points
-    .replace(/\n{2,}/g, ' ')            // multiple newlines → space
-    .replace(/\n/g, ' ')                // single newlines
-    .replace(/\s{2,}/g, ' ')            // multiple spaces
+    .replace(/`([^`]+)`/g, '$1')        // `code`
+    .replace(/```[\s\S]*?```/g, '')     // code blocks
+    .replace(/\|[^|\n]+\|/g, '')        // | table |
+    .replace(/^\s*[-*•]\s+/gm, '')    // bullet points
+    .replace(/^\s*\d+\.\s+/gm, '')      // numbered lists
+    .replace(/https?:\/\/[^\s]+/g, '') // URLs
+    .replace(/\n{2,}/g, '. ')           // paragraph breaks → pause
+    .replace(/\n/g, ' ')                // line breaks → space
+    .replace(/\s{2,}/g, ' ')            // extra spaces
     .trim();
-
-  // For general questions — first 2 sentences only (keep voice concise)
-  if (intent === 'GENERAL') {
-    const sentences = clean.split(/(?<=[.!?])\s+/);
-    if (sentences.length > 3) {
-      clean = sentences.slice(0, 3).join(' ');
-    }
-  }
-
-  // Hard cap at 300 chars for voice
-  if (clean.length > 300) {
-    const cutoff = clean.lastIndexOf(' ', 290);
-    clean = clean.substring(0, cutoff > 200 ? cutoff : 290) + '.';
-  }
-
-  return clean;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -470,7 +457,7 @@ async function callModel(
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
-        max_tokens: 400,
+        max_tokens: 600,
         temperature: 0.5,
       }),
     });
@@ -570,7 +557,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (localAnswer) {
       return res.status(200).json({
         answer: localAnswer,
-        speakable: makeSpeakable(localAnswer, intent),
+        speakable: makeSpeakable(localAnswer),
         intent,
         suggestions,
         source: 'knowledge_base',
@@ -614,7 +601,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       answer: cleanAnswer,
-      speakable: makeSpeakable(cleanAnswer, intent),
+      speakable: makeSpeakable(cleanAnswer),
       intent,
       suggestions,
       source: 'ai',

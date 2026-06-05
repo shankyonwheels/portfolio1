@@ -24,6 +24,12 @@ const DEFAULT_SUGGESTIONS: string[] = [
   'Are you open to remote or hybrid?',
 ];
 
+// ── Session greeting constants ─────────────────────────────────────────
+const SK_WELCOME = 'portfolioWelcomeSpoken';
+const SK_CHATBOT = 'chatbotGreetingSpoken';
+const WELCOME_TEXT = "Welcome to Shashank Dwivedi's portfolio. I hope you're doing great. Feel free to explore my work, experience, and AI assistant.";
+const CHATBOT_GREETING = "Hi! I'm Shashank's AI Assistant. How can I help you today?";
+
 // ── SpeechRecognition types ────────────────────────────────────────────
 type SpeechRecognitionEvent = { results: SpeechRecognitionResultList };
 type SpeechRecognitionErrorEvent = { error: string };
@@ -112,6 +118,9 @@ const RecruiterChatbot: React.FC = () => {
   const finalTranscriptSentRef = useRef<boolean>(false);
   const handleSendRef = useRef<((text: string) => void) | null>(null);
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | undefined>(undefined);
+  // Greeting refs
+  const greetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const greetingFiredRef = useRef<boolean>(false);
 
   // ── Load history ──────────────────────────────────────────────────
   useEffect(() => {
@@ -156,6 +165,100 @@ const RecruiterChatbot: React.FC = () => {
     setIsSpeaking(speaking);
     window.dispatchEvent(new CustomEvent('ai-speaking', { detail: speaking }));
   }, []);
+
+  // ── Speak a single greeting utterance (no chunking) ───────────────
+  // Returns true if speak() was accepted; onstart fires if audio starts.
+  const speakGreeting = useCallback((text: string) => {
+    if (!window.speechSynthesis) return;
+    const clean = cleanTextForSpeech(text);
+    if (!clean) return;
+    speechCancelRef.current = false;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(clean);
+    utt.lang = 'en-US';
+    utt.rate = 1.08;
+    utt.pitch = 1.00;
+    utt.volume = 1.0;
+    if (selectedVoiceRef.current) utt.voice = selectedVoiceRef.current;
+    utt.onstart = () => { if (!speechCancelRef.current) dispatchSpeaking(true); };
+    utt.onend   = () => { dispatchSpeaking(false); };
+    utt.onerror = () => { dispatchSpeaking(false); };
+    window.speechSynthesis.speak(utt);
+  }, [dispatchSpeaking]);
+
+  // ── Welcome greeting — once per browser session ───────────────────
+  useEffect(() => {
+    if (sessionStorage.getItem(SK_WELCOME)) return;
+    if (!window.speechSynthesis) return;
+
+    const interactionEvents = ['click', 'touchstart', 'keydown', 'scroll', 'mousemove'] as const;
+    let interactionBound = false;
+
+    const removeInteractionListeners = () => {
+      interactionEvents.forEach(ev => document.removeEventListener(ev, onFirstInteraction));
+    };
+
+    const doWelcome = () => {
+      if (greetingFiredRef.current || sessionStorage.getItem(SK_WELCOME)) return;
+      greetingFiredRef.current = true;
+      sessionStorage.setItem(SK_WELCOME, 'true');
+      removeInteractionListeners();
+      speakGreeting(WELCOME_TEXT);
+    };
+
+    const onFirstInteraction = () => {
+      removeInteractionListeners();
+      doWelcome();
+    };
+
+    const bindInteractionListeners = () => {
+      if (interactionBound) return;
+      interactionBound = true;
+      interactionEvents.forEach(ev =>
+        document.addEventListener(ev, onFirstInteraction, { passive: true })
+      );
+    };
+
+    // Attempt autoplay after 1s delay
+    greetingTimerRef.current = setTimeout(() => {
+      if (sessionStorage.getItem(SK_WELCOME)) return;
+
+      // Try speaking; detect if blocked by checking onstart within 2.5s
+      speechCancelRef.current = false;
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(cleanTextForSpeech(WELCOME_TEXT));
+      utt.lang = 'en-US';
+      utt.rate = 1.08;
+      utt.pitch = 1.00;
+      utt.volume = 1.0;
+      if (selectedVoiceRef.current) utt.voice = selectedVoiceRef.current;
+
+      let startFired = false;
+      utt.onstart = () => {
+        if (speechCancelRef.current) { dispatchSpeaking(false); return; }
+        startFired = true;
+        greetingFiredRef.current = true;
+        sessionStorage.setItem(SK_WELCOME, 'true');
+        dispatchSpeaking(true);
+      };
+      utt.onend   = () => { if (startFired) dispatchSpeaking(false); };
+      utt.onerror = () => { if (startFired) dispatchSpeaking(false); };
+      window.speechSynthesis.speak(utt);
+
+      // Autoplay block detection: if onstart hasn't fired in 2.5s, fall back
+      greetingTimerRef.current = setTimeout(() => {
+        if (!startFired && !sessionStorage.getItem(SK_WELCOME)) {
+          try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+          bindInteractionListeners();
+        }
+      }, 2500);
+    }, 1000);
+
+    return () => {
+      if (greetingTimerRef.current) clearTimeout(greetingTimerRef.current);
+      removeInteractionListeners();
+    };
+  }, [speakGreeting, dispatchSpeaking]);
 
   // ── Stop TTS immediately ──────────────────────────────────────────
   const stopSpeaking = useCallback(() => {
@@ -456,7 +559,19 @@ const RecruiterChatbot: React.FC = () => {
       ) : (
         <button
           className='chatbot-button'
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            // Stop any current speech (including welcome greeting)
+            stopSpeaking();
+            greetingFiredRef.current = true; // prevent welcome from re-triggering
+            setIsOpen(true);
+            // Chatbot opening greeting — once per session
+            if (!sessionStorage.getItem(SK_CHATBOT)) {
+              sessionStorage.setItem(SK_CHATBOT, 'true');
+              greetingTimerRef.current = setTimeout(() => {
+                speakGreeting(CHATBOT_GREETING);
+              }, 350);
+            }
+          }}
           title="Chat with Shashank's AI"
           aria-label="Open chatbot"
         >

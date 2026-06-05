@@ -72,8 +72,10 @@ const Scene = () => {
     let headBaseRotationX = 0;
 
     const handleAiSpeaking = (e: Event) => {
-      const customEvent = e as CustomEvent<boolean>;
-      isSpeaking = customEvent.detail;
+      // Accept both old boolean format and new { speaking, source } format
+      const ev = e as CustomEvent<{ speaking: boolean } | boolean>;
+      const detail = ev.detail;
+      isSpeaking = typeof detail === 'boolean' ? detail : detail.speaking;
 
       // Reset mouth immediately when speech stops
       if (!isSpeaking) {
@@ -106,12 +108,36 @@ const Scene = () => {
         headBone = character.getObjectByName("spine006") || null;
         if (headBone) headBaseRotationX = headBone.rotation.x;
 
-        // ── 2. Find jaw bone — try all known names ────────────────────
+        // ── 2. Find jaw bone — exact names first, fuzzy traverse fallback ─
         for (const name of JAW_BONE_NAMES) {
           const found = character.getObjectByName(name);
           if (found) { jawBone = found; break; }
         }
-        if (jawBone) jawBaseRotationX = jawBone.rotation.x;
+
+        // Fuzzy fallback: traverse all objects looking for jaw/mouth/lip/chin
+        if (!jawBone) {
+          character.traverse((child) => {
+            if (jawBone) return; // already found
+            const n = child.name.toLowerCase();
+            if (
+              n.includes('jaw') || n.includes('mouth') ||
+              n.includes('lip') || n.includes('chin') ||
+              n.includes('mandib') || n.includes('muzzle')
+            ) {
+              // Exclude the head/spine bone itself
+              if (child !== headBone) {
+                jawBone = child;
+              }
+            }
+          });
+        }
+
+        if (jawBone) {
+          jawBaseRotationX = jawBone.rotation.x;
+          console.log('[Scene] Using jaw bone:', jawBone.name);
+        } else {
+          console.log('[Scene] No jaw bone found — will use morph targets or head nod fallback');
+        }
 
         // ── 3. Find morph targets on skinned meshes ───────────────────
         character.traverse((child) => {
@@ -131,10 +157,14 @@ const Scene = () => {
         if (import.meta.env.DEV) {
           console.log('[Scene] jawBone:', jawBone?.name || 'none');
           console.log('[Scene] morphTargetMeshes:', mouthMorphMeshes.length);
+          // Log ALL bones and morph targets to help identify model structure
           character.traverse(c => {
+            if ((c as { isBone?: boolean }).isBone || c.type === 'Bone') {
+              console.log('[Scene] Bone:', c.name);
+            }
             const m = c as THREE.Mesh;
             if (m.morphTargetDictionary) {
-              console.log('[Scene] morph targets on', c.name, ':', Object.keys(m.morphTargetDictionary));
+              console.log('[Scene] Morph targets on', c.name, ':', Object.keys(m.morphTargetDictionary));
             }
           });
         }
@@ -145,6 +175,8 @@ const Scene = () => {
             light.turnOnLights();
             character.visible = true;
             animations.startIntro();
+            // Notify RecruiterChatbot that the character is ready — welcome speech can now start
+            window.dispatchEvent(new CustomEvent('character-ready', { detail: true }));
           }, 2500);
         });
         resizeHandler = () => handleResize(renderer, camera, canvasDiv, character);
@@ -202,9 +234,8 @@ const Scene = () => {
 
           // ── Primary: jaw bone oscillation ─────────────────────
           if (jawBone) {
-            // Natural mouth: fast open/close driven by sin wave
-            // Amplitude 0.08 rad ≈ noticeable but not exaggerated
-            const jawAngle = Math.abs(Math.sin(time * 9)) * 0.08;
+            // Natural mouth open/close: faster frequency, higher amplitude
+            const jawAngle = Math.abs(Math.sin(time * 9)) * 0.15;
             jawBone.rotation.x = jawBaseRotationX + jawAngle;
           }
 

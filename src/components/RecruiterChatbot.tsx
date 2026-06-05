@@ -172,9 +172,15 @@ const RecruiterChatbot: React.FC = () => {
   // Mic: store final transcript across async boundary
   const micTranscriptRef       = useRef<string>('');
   const micSentRef             = useRef<boolean>(false);
-  // Greeting
+  // ── Dual-gate greeting refs ────────────────────────────────────────
+  // Both must be true before welcome speech fires
+  const characterReadyRef      = useRef<boolean>(false); // 'character-ready' event fired
+  const speechUnlockedRef      = useRef<boolean>(false); // user interacted with page
+  const welcomeBlockedRef      = useRef<boolean>(false); // chatbot opened before welcome
+  const greetingInProgressRef  = useRef<boolean>(false); // active attempt in progress
   const greetingTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const greetingFiredRef       = useRef<boolean>(false);
+  // Dev logging shorthand (tree-shaken in prod)
+  const DEV = import.meta.env.DEV;
 
   // ── Load history ──────────────────────────────────────────────────
   useEffect(() => {
@@ -230,120 +236,147 @@ const RecruiterChatbot: React.FC = () => {
     dispatchSpeaking(false);
   }, [dispatchSpeaking]);
 
-  // ── Speak single utterance (greetings) ───────────────────────────
-  const speakGreeting = useCallback((text: string, source: 'welcome' | 'chatbot' = 'chatbot') => {
-    if (!window.speechSynthesis) return;
+  // ── Speak single utterance (greetings) — internal helper ─────────
+  // sessionKey: if provided, set ONLY in onstart (not before)
+  const speakGreeting = useCallback((
+    text: string,
+    source: 'welcome' | 'chatbot',
+    onStarted?: () => void,
+    onFailed?: () => void,
+  ) => {
+    if (!window.speechSynthesis) {
+      onFailed?.();
+      return;
+    }
     const prepared = prepareForSpeech(text);
-    if (!prepared) return;
+    if (!prepared) { onFailed?.(); return; }
+
     speechCancelRef.current = false;
     window.speechSynthesis.cancel();
+
     const utt = new SpeechSynthesisUtterance(prepared);
     utt.lang = 'en-US';
     utt.rate = 1.08;
     utt.pitch = 1.00;
     utt.volume = 1.0;
     if (selectedVoiceRef.current) utt.voice = selectedVoiceRef.current;
-    utt.onstart = () => { if (!speechCancelRef.current) dispatchSpeaking(true, source); };
+
+    utt.onstart = () => {
+      if (speechCancelRef.current) { dispatchSpeaking(false, source); return; }
+      onStarted?.();
+      dispatchSpeaking(true, source);
+    };
     utt.onend   = () => { dispatchSpeaking(false, source); };
-    utt.onerror = () => { dispatchSpeaking(false, source); };
+    utt.onerror = (e) => {
+      const err = (e as SpeechSynthesisErrorEvent).error;
+      if (err !== 'interrupted') onFailed?.();
+      dispatchSpeaking(false, source);
+    };
     window.speechSynthesis.speak(utt);
   }, [dispatchSpeaking]);
 
-  // ── Welcome greeting — waits for character-ready event ───────────
+  // ── DUAL-GATE WELCOME GREETING ────────────────────────────────────
+  // Welcome speaks only when: characterReady=true AND speechUnlocked=true
+  // Session flag set ONLY inside utterance.onstart (never before)
   useEffect(() => {
-    if (sessionStorage.getItem(SK_WELCOME)) return;
-    if (!window.speechSynthesis) return;
+    if (sessionStorage.getItem(SK_WELCOME)) return;  // already spoken this session
+    if (!window.speechSynthesis) return;             // TTS not supported
 
-    const INTERACTION_EVENTS = ['click', 'touchstart', 'keydown', 'scroll', 'mousemove'] as const;
-    let interactionBound = false;
-    let safetyTimerSet   = false;
+    const INTERACTION_EVENTS = ['click', 'pointerdown', 'touchstart', 'keydown', 'scroll'] as const;
 
-    const removeInteractionListeners = () => {
-      INTERACTION_EVENTS.forEach(ev => document.removeEventListener(ev, onFirstInteraction));
-    };
+    // ── Attempt welcome speech ─────────────────────────────────────
+    const attemptWelcome = () => {
+      if (!characterReadyRef.current || !speechUnlockedRef.current) return; // gates not open
+      if (welcomeBlockedRef.current) return;                                // chatbot opened first
+      if (sessionStorage.getItem(SK_WELCOME)) return;                       // already done
+      if (greetingInProgressRef.current) return;                            // in progress
 
-    const doWelcome = () => {
-      if (greetingFiredRef.current || sessionStorage.getItem(SK_WELCOME)) return;
-      greetingFiredRef.current = true;
-      sessionStorage.setItem(SK_WELCOME, 'true');
-      removeInteractionListeners();
-      window.removeEventListener('character-ready', onCharacterReady);
-      speakGreeting(WELCOME_TEXT, 'welcome');
-    };
+      greetingInProgressRef.current = true;
+      if (DEV) console.log('[Speech] welcome queued');
 
-    const tryAutoplay = () => {
-      if (sessionStorage.getItem(SK_WELCOME)) return;
-      // Attempt autoplay; detect if browser blocks it
-      const testText = prepareForSpeech(WELCOME_TEXT);
-      speechCancelRef.current = false;
-      window.speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(testText);
-      utt.lang = 'en-US';
-      utt.rate = 1.08;
-      utt.pitch = 1.00;
-      utt.volume = 1.0;
-      if (selectedVoiceRef.current) utt.voice = selectedVoiceRef.current;
-
-      let startFired = false;
-      utt.onstart = () => {
-        if (speechCancelRef.current) { dispatchSpeaking(false, 'welcome'); return; }
-        startFired = true;
-        greetingFiredRef.current = true;
-        sessionStorage.setItem(SK_WELCOME, 'true');
-        window.removeEventListener('character-ready', onCharacterReady);
-        dispatchSpeaking(true, 'welcome');
-      };
-      utt.onend   = () => { if (startFired) dispatchSpeaking(false, 'welcome'); };
-      utt.onerror = () => { if (startFired) dispatchSpeaking(false, 'welcome'); };
-      window.speechSynthesis.speak(utt);
-
-      // If onstart didn't fire in 2.5s, browser blocked autoplay → wait for interaction
-      greetingTimerRef.current = setTimeout(() => {
-        if (!startFired && !sessionStorage.getItem(SK_WELCOME)) {
-          try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      speakGreeting(
+        WELCOME_TEXT,
+        'welcome',
+        () => {
+          // onStarted — speech actually began
+          if (DEV) console.log('[Speech] welcome started');
+          sessionStorage.setItem(SK_WELCOME, 'true');  // set flag ONLY here
+          removeInteractionListeners();
+        },
+        () => {
+          // onFailed — speech was blocked/errored before starting
+          if (DEV) console.log('[Speech] blocked or failed, will retry on interaction');
+          greetingInProgressRef.current = false;  // allow retry
+          // re-bind interaction listeners so next gesture retries
           bindInteractionListeners();
         }
-      }, 2500);
+      );
+      // onend handled inside speakGreeting; just clear in-progress flag
+      // We hook the real end via a separate listener on the 'ai-speaking' event
     };
 
+    // ── Cleanup: remove on next speak or unmount ───────────────────
+    const onAiSpeakingEnd = (e: Event) => {
+      const ev = e as CustomEvent<{ speaking: boolean; source: string }>;
+      if (!ev.detail.speaking && ev.detail.source === 'welcome') {
+        if (DEV) console.log('[Speech] welcome ended');
+        greetingInProgressRef.current = false;
+        window.removeEventListener('ai-speaking', onAiSpeakingEnd);
+      }
+    };
+    window.addEventListener('ai-speaking', onAiSpeakingEnd);
+
+    // ── Gate 1: Character ready ────────────────────────────────────
+    const onCharacterReady = () => {
+      if (DEV) console.log('[Speech] character-ready received');
+      characterReadyRef.current = true;
+      window.removeEventListener('character-ready', onCharacterReady);
+      // Give browser 800ms after character is visible, then try
+      greetingTimerRef.current = setTimeout(attemptWelcome, 800);
+    };
+    window.addEventListener('character-ready', onCharacterReady);
+
+    // ── Gate 2: User interaction ───────────────────────────────────
+    let interactionBound = false;
+    const removeInteractionListeners = () => {
+      INTERACTION_EVENTS.forEach(ev => document.removeEventListener(ev, onFirstInteraction, true));
+    };
     const onFirstInteraction = () => {
+      if (speechUnlockedRef.current) return; // already unlocked
+      if (DEV) console.log('[Speech] user interaction unlocked');
+      speechUnlockedRef.current = true;
       removeInteractionListeners();
-      doWelcome();
+      attemptWelcome();
     };
-
     const bindInteractionListeners = () => {
       if (interactionBound) return;
       interactionBound = true;
       INTERACTION_EVENTS.forEach(ev =>
-        document.addEventListener(ev, onFirstInteraction, { passive: true })
+        document.addEventListener(ev, onFirstInteraction, { passive: true, capture: true })
       );
     };
 
-    // ── Listen for character-ready event from Scene.tsx ────────────
-    const onCharacterReady = () => {
-      window.removeEventListener('character-ready', onCharacterReady);
-      // Wait 800ms after character is ready before speaking
-      greetingTimerRef.current = setTimeout(tryAutoplay, 800);
-    };
+    // Start with interaction listeners bound immediately
+    // (unlock happens on first user gesture, then we speak if character is also ready)
+    bindInteractionListeners();
 
-    window.addEventListener('character-ready', onCharacterReady);
-
-    // Safety fallback: if character-ready never fires within 12s, try anyway
-    if (!safetyTimerSet) {
-      safetyTimerSet = true;
-      greetingTimerRef.current = setTimeout(() => {
-        if (!greetingFiredRef.current && !sessionStorage.getItem(SK_WELCOME)) {
-          tryAutoplay();
-        }
-      }, 12000);
-    }
+    // ── Safety fallback: if character-ready never fires in 12s ─────
+    greetingTimerRef.current = setTimeout(() => {
+      if (!characterReadyRef.current) {
+        if (DEV) console.log('[Speech] character-ready timeout, marking as ready');
+        characterReadyRef.current = true;
+        attemptWelcome();
+      }
+    }, 12000);
 
     return () => {
       if (greetingTimerRef.current) clearTimeout(greetingTimerRef.current);
       removeInteractionListeners();
       window.removeEventListener('character-ready', onCharacterReady);
+      window.removeEventListener('ai-speaking', onAiSpeakingEnd);
     };
-  }, [speakGreeting, dispatchSpeaking]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── TTS: speak full answer — no truncation ────────────────────────
   const speakText = useCallback((text: string) => {
@@ -682,16 +715,38 @@ const RecruiterChatbot: React.FC = () => {
         <button
           className='chatbot-button'
           onClick={() => {
-            // Stop any greeting/welcome speech first
+            // Chatbot button is a user gesture — speech always works here
+            // 1. Mark speech as unlocked (may trigger welcome if not blocked)
+            speechUnlockedRef.current = true;
+            // 2. Block welcome and cancel any in-progress speech
+            welcomeBlockedRef.current = true;
             stopSpeaking();
-            greetingFiredRef.current = true; // prevent welcome re-trigger
             setIsOpen(true);
-            // Chatbot opening greeting — once per session
+
+            // 3. Chatbot greeting — once per session
             if (!sessionStorage.getItem(SK_CHATBOT)) {
-              sessionStorage.setItem(SK_CHATBOT, 'true');
-              greetingTimerRef.current = setTimeout(() => {
-                speakGreeting(CHATBOT_GREETING, 'chatbot');
-              }, 350);
+              if (!window.speechSynthesis) {
+                // TTS not supported — show fallback message in chat
+                setMessages(prev => [...prev, {
+                  role: 'assistant',
+                  content: 'Voice greeting is not supported in this browser, but you can still use the chatbot.',
+                }]);
+                return;
+              }
+              if (DEV) console.log('[Speech] chatbot greeting started');
+              speakGreeting(
+                CHATBOT_GREETING,
+                'chatbot',
+                () => {
+                  // Set flag ONLY after utterance.onstart fires
+                  sessionStorage.setItem(SK_CHATBOT, 'true');
+                  if (DEV) console.log('[Speech] chatbot greeting confirmed started');
+                },
+                () => {
+                  // Speech failed — don't set flag, allow retry next time
+                  if (DEV) console.log('[Speech] chatbot greeting failed');
+                }
+              );
             }
           }}
           title="Chat with Shashank's AI"

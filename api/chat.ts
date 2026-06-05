@@ -1,207 +1,516 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// ─── INLINE KNOWLEDGE BASE (no external import — fixes ERR_MODULE_NOT_FOUND on Vercel) ───
-const CURRENT_CTC = '11 LPA';
-const EXPECTED_CTC = '16 LPA';
-const NOTICE_PERIOD = '2 Months';
-const PREFERRED_LOCATION = 'Pune';
-const WORK_MODE = 'Remote / Hybrid / Open to discuss';
-const RELOCATION = 'Open to relocation';
-const JOIN_AVAILABILITY = 'As soon as possible';
-const CURRENT_ROLE = 'Account Manager / Lead IT Recruiter';
-const CURRENT_COMPANY = 'Softenger';
-const EXPERIENCE_YEARS = '6+';
-const NAME = 'Shashank Dwivedi';
-const EMAIL = 'sdwivedi353@gmail.com';
-const PHONE = '+91 8999154989';
-const LINKEDIN = 'https://www.linkedin.com/in/shashank-sam-dwivedi-a4bb09b4/';
-const LOCATION = 'Pune, Maharashtra, India';
+// ══════════════════════════════════════════════════════════════════════
+// SHASHANK'S PROFILE — FULLY INLINED (no external imports)
+// ══════════════════════════════════════════════════════════════════════
+const P = {
+  name: 'Shashank Dwivedi',
+  role: 'Account Manager / Lead IT Recruiter',
+  company: 'Softenger',
+  experience: '6+',
+  location: 'Pune, Maharashtra, India',
+  email: 'sdwivedi353@gmail.com',
+  phone: '+91 8999154989',
+  linkedin: 'https://www.linkedin.com/in/shashank-sam-dwivedi-a4bb09b4/',
+  currentCTC: '11 LPA',
+  expectedCTC: '16 LPA',
+  noticePeriod: '2 Months',
+  joiningAvailability: 'As soon as possible after notice period',
+  preferredLocation: 'Pune',
+  workMode: 'Remote / Hybrid / Open to discuss',
+  relocation: 'Open to relocation',
+  teamSize: '15 recruiters',
+  clients: 'HPE, Kyndryl, Cadence, Teradyne, Credence, Atkins, Oracle, Amdocs, Tanla Platforms, Caterpillar, Cox Automotive, Bank of America, Wells Fargo, Citigroup, Morgan Stanley, Meta, EY, Hexaware, Charles Schwab, Google, Bayer',
+  domains: 'Cybersecurity (SOC, NOC, VAPT), IT Infrastructure (Backup & Storage, DBA, Cloud, Network, Security Engineering)',
+  rolesHired: 'SOC Analyst, NOC Engineer, VAPT, Cloud Engineer, System Engineer, DevOps, Data Engineer, BI Developer, Python/Java/.NET/React Developer, QA Automation, Scrum Master, Business Analyst, Project Manager, IAM/SailPoint Consultant',
+  tools: 'Bullhorn, JobDiva, Ceipal, Fieldglass, Beeline, TalentOrb, Orwin, Dice, Monster, CareerBuilder, LinkedIn Recruiter, Textkernel, Boolean Search, X-Ray Search',
+  education: "MCA, Pune University (2021–2023); BCA, ISB&M (2017–2021)",
+  certifications: 'Cyber Security Associate (Reliance Foundation), Cybersecurity Certificate (Skill India), Lean Six Sigma Green & Yellow Belt, PMP Training (Simplilearn), ChatGPT for Cybersecurity, Talent Acquisition Certification',
+  career: `
+1. Account Manager / Lead IT Recruiter — Softenger (Mar 2025–Present)
+   Managing 15 recruiters. US, Europe, Middle East, Singapore, Malaysia hiring.
+   Clients: HPE, Kyndryl, Cadence, Oracle, Amdocs, Tanla Platforms.
+   Focus: Cybersecurity & IT Infrastructure. ₹6 Cr quarterly target.
 
-const CLIENTS = 'HPE, Kyndryl, Cadence, Teradyne, Credence, Atkins, Oracle, Amdocs, Tanla Platforms, Caterpillar, Cox Automotive, Bank of America, Wells Fargo, Citigroup, Morgan Stanley, Meta, EY, Hexaware, Charles Schwab, Google, Bayer';
-const ATS_TOOLS = 'Bullhorn, JobDiva, Ceipal, Fieldglass, Beeline, TalentOrb, Orwin';
-const JOB_PORTALS = 'Dice, Monster, CareerBuilder, Indeed, LinkedIn Recruiter, Textkernel';
-const DOMAINS = 'Cybersecurity (SOC, NOC, VAPT), IT Infrastructure (Backup & Storage, DBA, Cloud, Network, Security Engineering)';
-const ROLES_HIRED = 'SOC Analyst, NOC, VAPT, Cloud Engineer, System Engineer, DevOps, Data Engineer, BI Developer, ETL Developer, AI/ML Developer, Python Developer, Java Developer, .NET Developer, React/Node.js Developer, QA Automation, Scrum Master, Business Analyst, Project Manager, IT Director, IAM Consultant, SailPoint';
-const CERTIFICATIONS = 'Cyber Security Associate (Reliance Foundation, Mar 2026), Cybersecurity Certificate (Skill India Digital Hub, Mar 2026), Talent Acquisition Certification (LearnTube.ai, Sep 2025), Lean Six Sigma Green Belt (Alison, Jun 2025), Lean Six Sigma Yellow Belt (CSSC, Jun 2025), ChatGPT for Cybersecurity (Simplilearn, May 2025), Master in POSH Act 2013 (Keka Academy, May 2025), PMP Certification Training (Simplilearn, Mar 2025)';
-const EDUCATION = "Master's in Computer Application, Pune University (2021–2023); Bachelor's in Computer Application, International School of Business and Media (2017–2021)";
+2. Operation Manager / Lead IT Recruiter — GP Aarogya Healthcare Technologies (Oct 2024–Jan 2025)
+   Managed operations for 58 professionals. Built recruitment workflows.
 
-const EXPERIENCE_HISTORY = `
-1. Account Manager / Lead IT Recruiter — Softenger (Mar 2025–Present): Managing 15 recruiters, end-to-end recruitment across US, Europe, Middle East, Singapore, Malaysia. Clients: HPE, Kyndryl, Cadence, Oracle, Amdocs. Cybersecurity & IT Infrastructure hiring.
-2. Operation Manager / Lead IT Recruiter — GP Aarogya Healthcare Technologies (Oct 2024–Jan 2025): Managed operations for 58 professionals, built recruitment workflows.
-3. Lead US IT Recruiter — Qualified Recruiter / Prestige Staffing (May 2023–Sep 2024): 500+ candidate pipeline, top performer 3+ years. Clients: Caterpillar, Cox Automotive.
-4. Lead US IT Recruiter — IMS / Experis (May 2022–May 2023): Bank of America, Wells Fargo requirements. Fieldglass, Bullhorn.
-5. Sr. US IT Recruiter — Mindlance (Jan 2022–May 2022): Citigroup, Morgan Stanley across 12 locations.
-6. US IT Recruiter — Head Field Solution Pvt Ltd (Jul 2020–Jan 2022): C2C, W2, Contract-to-Hire. Clients: Meta, EY, Hexaware, Charles Schwab, Google, Bayer.
-`;
+3. Lead US IT Recruiter — Prestige Staffing / Qualified Recruiter (May 2023–Sep 2024)
+   500+ candidate pipeline. Top performer 3+ years.
+   Clients: Caterpillar, Cox Automotive.
 
-// ─── CONFIG ───
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-// Use env override if set, otherwise default to nvidia nemotron (fast free tier model)
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-super-49b-v1:free';
-const MAX_MESSAGE_LENGTH = 500;
-const API_TIMEOUT = 8000; // 8s hard cap — knowledge base answers bypass this entirely
+4. Lead US IT Recruiter — IMS / Experis (May 2022–May 2023)
+   Clients: Bank of America, Wells Fargo. Tools: Fieldglass, Bullhorn.
 
-// ─── NORMALISE ───
-function normalizeQuery(q: string): string {
-  return q.toLowerCase().replace(/[?!.,']+/g, '').replace(/\s+/g, ' ').trim();
+5. Sr. US IT Recruiter — Mindlance (Jan 2022–May 2022)
+   Clients: Citigroup, Morgan Stanley across 12 locations.
+
+6. US IT Recruiter — Head Field Solution Pvt Ltd (Jul 2020–Jan 2022)
+   C2C, W2, Contract-to-Hire. Clients: Meta, EY, Hexaware, Charles Schwab, Google, Bayer.
+`,
+  strengths: 'End-to-end recruitment, Boolean & X-Ray Search, LinkedIn Recruiter, Account Management, Stakeholder Management, Vendor Management, Global IT Hiring, Team Leadership, Salary Negotiation, Offer Coordination, Cybersecurity Domain Expertise',
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// MODEL CONFIGURATION — via Vercel env vars with smart defaults
+// ══════════════════════════════════════════════════════════════════════
+const KEY = process.env.OPENROUTER_API_KEY;
+
+// Model roles — all overridable via Vercel environment variables
+const MODELS = {
+  // Fast: instant answers, low latency — used for profile/screening questions
+  fast: process.env.OPENROUTER_MODEL_FAST || 'google/gemma-2-9b-it:free',
+  // Advanced: deep reasoning — used for career analysis, JD matching, writing
+  advanced: process.env.OPENROUTER_MODEL_ADVANCED || 'nvidia/nemotron-3-super-120b-a12b:free',
+  // General: broad knowledge — used for non-profile questions
+  general: process.env.OPENROUTER_MODEL_GENERAL || 'meta-llama/llama-3.1-8b-instruct:free',
+  // Fallback: emergency backup when others fail
+  fallback: process.env.OPENROUTER_MODEL_FALLBACK || 'google/gemma-2-9b-it:free',
+};
+
+// Verified free chat models on OpenRouter (as of June 2025)
+// All support text→text generation. Order = priority for fallback attempts.
+const FREE_MODEL_POOL: string[] = [
+  MODELS.fast,                                    // 1. Gemma 2 9B (verified working)
+  'meta-llama/llama-3.1-8b-instruct:free',       // 2. Llama 3.1 8B
+  'meta-llama/llama-3.2-3b-instruct:free',       // 3. Llama 3.2 3B (small, fast)
+  'mistralai/mistral-7b-instruct:free',           // 4. Mistral 7B
+  'qwen/qwen-2.5-7b-instruct:free',              // 5. Qwen 2.5 7B
+  'deepseek/deepseek-r1:free',                    // 6. DeepSeek R1
+  'microsoft/phi-3-mini-128k-instruct:free',      // 7. Phi-3 Mini
+  MODELS.advanced,                                // 8. Nvidia Nemotron (heavy, try last)
+  MODELS.fallback,                                // 9. Fallback model
+].filter((v, i, a) => v && a.indexOf(v) === i);  // deduplicate, remove empty
+
+// Timeout: 8000ms to stay safely under Vercel Hobby 10s function limit
+const API_TIMEOUT = 8000;
+const MAX_MSG_LENGTH = 800;
+
+// ══════════════════════════════════════════════════════════════════════
+// INTENT DETECTION
+// ══════════════════════════════════════════════════════════════════════
+type Intent = 'PROFILE' | 'CAREER' | 'JD' | 'WRITING' | 'GENERAL' | 'MIXED';
+
+function detectIntent(message: string): Intent {
+  const q = message.toLowerCase();
+
+  // JD analysis — user pasted a job description or asks about fit
+  if (q.includes('job description') || q.includes(' jd ') || q.includes('job desc') ||
+      q.includes('am i fit') || q.includes('do i qualify') || q.includes('match this') ||
+      q.includes('requirements:') || q.includes('responsibilities:') || q.includes('qualifications:')) {
+    return 'JD';
+  }
+
+  // Writing intent — user wants drafts, emails, messages
+  if (q.includes('write ') || q.includes('draft ') || q.includes('compose ') ||
+      q.includes('email to') || q.includes('message to') || q.includes('inmail') ||
+      q.includes('cover letter') || q.includes('summarize my') || q.includes('template')) {
+    return 'WRITING';
+  }
+
+  // Profile screening — direct recruiter screening questions
+  const profileKeywords = [
+    'ctc', 'salary', 'package', 'notice period', 'notice', 'join', 'joining',
+    'current role', 'present role', 'current company', 'currently working',
+    'location', 'relocat', 'remote', 'hybrid', 'onsite', 'wfh',
+    'experience', 'years of', 'total exp', 'qualification', 'education',
+    'client', 'worked with', 'portfolio', 'certif', 'tools', 'ats', 'vms',
+    'domain', 'roles hired', 'hiring domain', 'contact', 'email', 'phone',
+    'yourself', 'about shashank', 'profile', 'background', 'resume', 'cv',
+    'skills', 'strength', 'availability', 'available', 'open to',
+  ];
+  if (profileKeywords.some(k => q.includes(k))) {
+    // If also has analysis/career context, treat as mixed/career
+    if (q.includes('career') || q.includes('growth') || q.includes('why hire') ||
+        q.includes('achieve') || q.includes('leadership') || q.includes('goal')) {
+      return 'CAREER';
+    }
+    return 'PROFILE';
+  }
+
+  // Career analysis — strategic, growth, achievement questions
+  const careerKeywords = [
+    'career', 'growth', 'achieve', 'accomplish', 'leadership', 'manage team',
+    'why hire', 'why should', 'best candidate', 'stand out', 'contribution',
+    'what next', 'shashank learn', 'future plan', 'roadmap', 'goal',
+    'stakeholder', 'account manag', 'vendor', 'global hiring', 'cybersecurity career',
+    'ai in recruitment', 'ai for shashank', 'how can shashank',
+  ];
+  if (careerKeywords.some(k => q.includes(k))) return 'CAREER';
+
+  // Mixed — general topic but with Shashank relevance
+  const mixedKeywords = [
+    'shashank', 'for recruitment', 'for recruiter', 'best for hiring',
+    'for sourcing', 'for talent', 'for shashank',
+  ];
+  if (mixedKeywords.some(k => q.includes(k))) return 'MIXED';
+
+  // Default — general knowledge question
+  return 'GENERAL';
 }
 
-// ─── LOCAL KNOWLEDGE LOOKUP (zero network calls, always fast) ───
+// ══════════════════════════════════════════════════════════════════════
+// LOCAL KNOWLEDGE LOOKUP — instant answers for common recruiter questions
+// ══════════════════════════════════════════════════════════════════════
 function getLocalAnswer(message: string): string | null {
-  const q = normalizeQuery(message);
+  const q = message.toLowerCase().replace(/[?!.,']+/g, '').replace(/\s+/g, ' ').trim();
 
-  if (q.includes('current ctc') || (q.includes('ctc') && !q.includes('expect')) || (q.includes('salary') && !q.includes('expect')))
-    return `My current CTC is ${CURRENT_CTC}.`;
+  if ((q.includes('current ctc') || (q.includes('ctc') && !q.includes('expect'))) ||
+      (q.includes('salary') && !q.includes('expect') && !q.includes('general')))
+    return `My current CTC is ${P.currentCTC}.`;
 
-  if (q.includes('expected ctc') || q.includes('expected salary') || (q.includes('expect') && (q.includes('ctc') || q.includes('salary') || q.includes('package'))))
-    return `My expected CTC is ${EXPECTED_CTC}.`;
+  if (q.includes('expected ctc') || q.includes('expected salary') || q.includes('expected package') ||
+      (q.includes('expect') && (q.includes('ctc') || q.includes('salary') || q.includes('package'))))
+    return `My expected CTC is ${P.expectedCTC}.`;
 
-  if (q.includes('notice period') || q.includes('notice') || q.includes('serving notice'))
-    return `My notice period is ${NOTICE_PERIOD}.`;
+  if (q.includes('notice period') || q.includes('notice'))
+    return `My notice period is ${P.noticePeriod}.`;
 
   if (q.includes('join') || q.includes('joining') || q.includes('when can') || q.includes('available from'))
-    return `I can join ${JOIN_AVAILABILITY}. My notice period is ${NOTICE_PERIOD}.`;
+    return `I can join ${P.joiningAvailability}. My notice period is ${P.noticePeriod}.`;
 
-  if (q.includes('remote') || q.includes('hybrid') || q.includes('work mode') || q.includes('work from home') || q.includes('wfh') || q.includes('onsite'))
-    return `I am open to ${WORK_MODE}. I am also ${RELOCATION}.`;
+  if (q.includes('remote') || q.includes('hybrid') || q.includes('work mode') || q.includes('wfh') || q.includes('work from home') || q.includes('onsite'))
+    return `I am open to ${P.workMode}. I am also ${P.relocation}.`;
 
-  if ((q.includes('location') && !q.includes('global')) || q.includes('relocat') || q.includes('pune'))
-    return `I am based in ${LOCATION}. Preferred location: ${PREFERRED_LOCATION}. ${RELOCATION}.`;
+  if ((q.includes('location') && !q.includes('global')) || q.includes('relocat') || q.includes('based'))
+    return `I am based in ${P.location}. Preferred: ${P.preferredLocation}. ${P.relocation}.`;
 
   if (q.includes('current role') || q.includes('present role') || q.includes('currently working') || q.includes('working as') || (q.includes('what') && q.includes('role') && !q.includes('hired')))
-    return `I am currently working as ${CURRENT_ROLE} at ${CURRENT_COMPANY}. I manage a team of 15 recruiters and handle Cybersecurity & IT Infrastructure hiring across US, Europe, Middle East, Singapore, and Malaysia.`;
+    return `I am currently working as ${P.role} at ${P.company}. I lead a team of ${P.teamSize} and handle Cybersecurity & IT Infrastructure hiring across US, Europe, Middle East, Singapore, and Malaysia.`;
 
   if (q.includes('total experience') || (q.includes('experience') && (q.includes('how many') || q.includes('years') || q.includes('total'))))
-    return `I have ${EXPERIENCE_YEARS} years of experience in US IT recruitment, global IT hiring, staffing, consulting, account management, and stakeholder management. My career spans Softenger, GP Aarogya, Prestige Staffing, IMS/Experis, Mindlance, and Head Field Solution.`;
+    return `I have ${P.experience} years of experience in US IT recruitment and global hiring across Cybersecurity, IT Infrastructure, and Staffing. I've worked with top Fortune 500 companies across 5 regions.`;
 
-  if (q.includes('tell me about') || q.includes('about yourself') || q.includes('who are you') || q.includes('about shashank') || q.includes('introduce') || q.includes('summary'))
-    return `I am ${NAME}, a ${CURRENT_ROLE} based in ${LOCATION}. I have ${EXPERIENCE_YEARS} years of recruitment experience across US IT, global hiring, staffing, and account management. Currently at ${CURRENT_COMPANY}, I lead a team of 15 recruiters handling Cybersecurity & IT Infrastructure hiring globally.`;
+  if (q.includes('about yourself') || q.includes('about shashank') || q.includes('who are you') || q.includes('introduce') || q.includes('tell me about you'))
+    return `I am ${P.name}, a ${P.role} based in ${P.location}. With ${P.experience} years in IT recruitment, I currently lead ${P.teamSize} at ${P.company}, handling Cybersecurity & IT Infrastructure hiring globally across US, Europe, Middle East, Singapore, and Malaysia.`;
 
-  if (q.includes('client') || (q.includes('worked with') && !q.includes('company')) || q.includes('account') && q.includes('handle'))
-    return `I have worked with clients including: ${CLIENTS}.`;
+  if (q.includes('client') || (q.includes('worked with') && !q.includes('company')))
+    return `I have worked with: ${P.clients}.`;
 
-  if (q.includes('account management') || (q.includes('account') && q.includes('manage')))
-    return `Yes, I have strong account management experience. I currently own client relationships and account management at Softenger, handling clients like HPE, Kyndryl, Cadence, Oracle, Amdocs, and Tanla Platforms.`;
+  if (q.includes('ats') || q.includes('vms') || q.includes('tools') || q.includes('portal') || q.includes('platform') || q.includes('software') || q.includes('bullhorn') || q.includes('jobdiva'))
+    return `Tools & Portals I use: ${P.tools}.`;
 
-  if (q.includes('ats') || q.includes('vms') || q.includes('tools') || q.includes('portal') || q.includes('platform') || q.includes('software') || q.includes('bullhorn') || q.includes('jobdiva') || q.includes('dice') || q.includes('monster'))
-    return `ATS/VMS Tools: ${ATS_TOOLS}. Job Portals: ${JOB_PORTALS}. I also use LinkedIn Recruiter, Boolean Search, X-Ray Search.`;
+  if (q.includes('cybersecurity') || q.includes('cyber') || q.includes('soc') || q.includes('noc') || q.includes('vapt') || q.includes('security'))
+    return `Yes, Cybersecurity hiring is my core specialization. I currently handle SOC, NOC, VAPT, Cloud, Network, and Security Engineering roles at Softenger. I have 3+ years of dedicated Cybersecurity hiring experience.`;
 
-  if (q.includes('cybersecurity') || q.includes('cyber') || q.includes('soc') || q.includes('noc') || q.includes('vapt') || q.includes('siem') || q.includes('security'))
-    return `Yes, I have strong Cybersecurity hiring experience. At Softenger, I currently handle SOC, NOC, VAPT, DBA, Backup & Storage, Cloud, Network, and Security Engineering roles. I have 3+ years in Cybersecurity hiring across all my roles.`;
+  if (q.includes('domain') || q.includes('speciali') || q.includes('hiring domain'))
+    return `My key hiring domains: ${P.domains}. I also recruit developers, data engineers, project managers, and IAM consultants.`;
 
-  if (q.includes('it infrastructure') || q.includes('infrastructure') || q.includes('network') || q.includes('cloud') || q.includes('devops'))
-    return `Yes, I have extensive IT Infrastructure hiring experience including Cloud Engineer, DevOps, System Engineer, System Admin, Network Security, Backup & Storage, DBA, and Security Engineering roles.`;
+  if (q.includes('skills') || q.includes('strength') || q.includes('good at') || q.includes('expertise'))
+    return `Core strengths: ${P.strengths}.`;
 
-  if (q.includes('domain') || q.includes('hired for') || q.includes('hiring domain') || q.includes('recruitment domain') || q.includes('specializ'))
-    return `My key hiring domains: ${DOMAINS}. I have also recruited developers (Java, .NET, Python, React), Data Engineers, Project Managers, Scrum Masters, QA Engineers, and IAM Consultants.`;
+  if (q.includes('education') || q.includes('degree') || q.includes('college') || q.includes('qualification') || q.includes('mca') || q.includes('bca'))
+    return `Education: ${P.education}.`;
 
-  if (q.includes('roles') && (q.includes('hired') || q.includes('recruit') || q.includes('worked on')))
-    return `Roles I have recruited for include: ${ROLES_HIRED}.`;
+  if (q.includes('certif') || q.includes('course') || q.includes('training'))
+    return `Certifications: ${P.certifications}.`;
 
-  if (q.includes('skill') || q.includes('strength') || q.includes('good at') || q.includes('expertise') || q.includes('competenc'))
-    return `My core skills: End-to-end recruitment, Boolean & X-Ray Search, LinkedIn Recruiter, ${ATS_TOOLS}, Account Management, Stakeholder Management, Vendor Management, Global IT Hiring, Team Leadership (15 recruiters), Salary Negotiation, Offer Coordination.`;
+  if (q.includes('team') || q.includes('manage') || q.includes('leadership'))
+    return `I currently lead a team of ${P.teamSize} at ${P.company}. I coach them on Boolean search, sourcing, client handling, and closing. Responsible for ₹6 Cr quarterly target.`;
 
-  if (q.includes('global') || q.includes('international') || q.includes('countries') || q.includes('region') || q.includes('us hiring') || q.includes('us it') || q.includes('europe') || q.includes('middle east') || q.includes('singapore') || q.includes('malaysia'))
-    return `Yes, I have handled global IT recruitment across the US, Europe, Middle East, Singapore, and Malaysia.`;
+  if (q.includes('why hire') || q.includes('why should') || q.includes('best candidate') || q.includes('stand out'))
+    return `Why Shashank? ${P.experience} years across US IT, global hiring (5 regions), Cybersecurity specialization, leadership of 15 recruiters, 500+ candidate pipelines, and Fortune 500 account management. He combines recruitment execution with strategic stakeholder and vendor management.`;
 
-  if (q.includes('team') || q.includes('manage team') || q.includes('managed team') || q.includes('lead') || q.includes('leadership'))
-    return `Yes, I currently lead and manage a team of 15 recruiters at Softenger. I coach them on Boolean search, sourcing, client handling, and closure techniques. I am responsible for the ₹6 Cr quarterly recruitment delivery target.`;
+  if (q.includes('contact') || q.includes('email') || q.includes('phone') || q.includes('linkedin'))
+    return `Contact: Email: ${P.email} | Phone: ${P.phone} | LinkedIn: ${P.linkedin}`;
 
-  if (q.includes('stakeholder') || q.includes('management') && q.includes('stake'))
-    return `Yes, I have extensive stakeholder management experience — coordinating with hiring managers, directors, project managers, and delivery teams across all my roles.`;
+  if (q.includes('company') || q.includes('employer') || q.includes('where') && q.includes('work'))
+    return `Career: Softenger (current) → GP Aarogya → Prestige Staffing → IMS/Experis → Mindlance → Head Field Solution.`;
 
-  if (q.includes('education') || q.includes('degree') || q.includes('college') || q.includes('qualification') || q.includes('university') || q.includes('mca') || q.includes('bca'))
-    return `Education: ${EDUCATION}.`;
+  if (q.includes('global') || q.includes('international') || q.includes('us hiring') || q.includes('us it') || q.includes('europe') || q.includes('middle east'))
+    return `Yes, I have managed global IT recruitment across US, Europe, Middle East, Singapore, and Malaysia.`;
 
-  if (q.includes('certification') || q.includes('certif') || q.includes('course') || q.includes('training'))
-    return `My certifications: ${CERTIFICATIONS}.`;
-
-  if (q.includes('achievement') || q.includes('why hire') || q.includes('why should') || q.includes('why you') || q.includes('best candidate') || q.includes('stand out'))
-    return `Why hire me: I lead a team of 15 recruiters at Softenger with a ₹6 Cr quarterly target. I have ${EXPERIENCE_YEARS} years spanning US IT, global hiring across 5 regions, Cybersecurity specialization, 500+ candidate pipelines, and strong client account management with Fortune 500 companies. I combine recruitment execution with strategic stakeholder and vendor management.`;
-
-  if (q.includes('company') || q.includes('employer') || q.includes('organization') || q.includes('where have you worked'))
-    return `I have worked at: Softenger (current), GP Aarogya Healthcare Technologies, Qualified Recruiter / Prestige Staffing, IMS / Experis, Mindlance, Head Field Solution Pvt Ltd.`;
-
-  if (q.includes('contact') || q.includes('email') || q.includes('phone') || q.includes('reach') || q.includes('linkedin'))
-    return `Contact Shashank: Email: ${EMAIL} | Phone: ${PHONE} | LinkedIn: ${LINKEDIN}`;
-
-  if (q.includes('experience') || q.includes('background') || q.includes('career') || q.includes('history') || q.includes('profile'))
-    return `Here is a summary of my career:\n${EXPERIENCE_HISTORY}\nTotal: ${EXPERIENCE_YEARS} years of recruitment experience.`;
+  if (q.includes('experience') || q.includes('background') || q.includes('career history'))
+    return `Career Summary:${P.career}\nTotal: ${P.experience} years.`;
 
   return null;
 }
 
-// ─── OPENROUTER AI FALLBACK ───
-async function getAIAnswer(message: string): Promise<string> {
-  if (!OPENROUTER_API_KEY) return getGenericFallback(message);
+// ══════════════════════════════════════════════════════════════════════
+// SYSTEM PROMPT BUILDER — tailored per intent
+// ══════════════════════════════════════════════════════════════════════
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function buildSystemPrompt(intent: Intent, _message: string): string {
+  const profile = `
+NAME: ${P.name}
+ROLE: ${P.role} at ${P.company}
+EXPERIENCE: ${P.experience} years
+CURRENT CTC: ${P.currentCTC} | EXPECTED CTC: ${P.expectedCTC}
+NOTICE PERIOD: ${P.noticePeriod} | JOINING: ${P.joiningAvailability}
+LOCATION: ${P.location} | WORK MODE: ${P.workMode} | ${P.relocation}
+CLIENTS: ${P.clients}
+DOMAINS: ${P.domains}
+TOOLS: ${P.tools}
+STRENGTHS: ${P.strengths}
+CERTIFICATIONS: ${P.certifications}
+EDUCATION: ${P.education}
+CAREER: ${P.career}`.trim();
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+  const baseStyle = `
+RESPONSE STYLE:
+- Be human, warm, professional, and confident — not robotic
+- Use short paragraphs
+- Avoid "as previously asked", "as I mentioned", "based on the information provided"
+- No unnecessary disclaimers
+- Get to the point quickly
+- For voice: keep answers conversational and under 3 sentences when possible`.trim();
 
-  try {
-    const systemPrompt = `You are Shashank Dwivedi's AI Recruiter Screening Assistant on his portfolio website.
-Answer ONLY using the candidate profile below. Be concise, professional, and recruiter-friendly.
-Do NOT say "as previously asked" or "as mentioned before". 
-If the answer is not in the profile, say: "That detail is not currently listed. Please contact Shashank directly at ${EMAIL}."
+  switch (intent) {
+    case 'PROFILE':
+      return `You are Shashank Dwivedi's AI Screening Assistant. Answer recruiter questions factually and concisely using only the profile data below. Sound confident and professional.
 
-CANDIDATE PROFILE:
-Name: ${NAME}
-Current Role: ${CURRENT_ROLE} at ${CURRENT_COMPANY}
-Experience: ${EXPERIENCE_YEARS} years
-Current CTC: ${CURRENT_CTC} | Expected CTC: ${EXPECTED_CTC}
-Notice Period: ${NOTICE_PERIOD} | Joining: ${JOIN_AVAILABILITY}
-Location: ${LOCATION} | Work Mode: ${WORK_MODE} | ${RELOCATION}
-Clients: ${CLIENTS}
-Domains: ${DOMAINS}
-ATS/Tools: ${ATS_TOOLS}, ${JOB_PORTALS}
-Certifications: ${CERTIFICATIONS}
-Education: ${EDUCATION}
-Career History: ${EXPERIENCE_HISTORY}`;
+${profile}
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://shashankdwivedi.vercel.app',
-        'X-Title': 'Shashank Portfolio Chatbot',
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message },
-        ],
-        max_tokens: 300,
-        temperature: 0.4,
-      }),
-    });
+${baseStyle}
+If a detail is missing, say: "That's not currently listed — please contact Shashank directly at ${P.email}."`;
 
-    clearTimeout(timeoutId);
+    case 'CAREER':
+      return `You are Shashank Dwivedi's career advocate and AI assistant. Give strategic, thoughtful answers that highlight his strengths, achievements, leadership, and career trajectory.
 
-    if (!response.ok) return getGenericFallback(message);
+${profile}
 
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    return content && content.length > 5 ? content : getGenericFallback(message);
-  } catch {
-    clearTimeout(timeoutId);
-    return getGenericFallback(message);
+${baseStyle}
+Sound like a confident professional representing Shashank to a senior recruiter or hiring manager. Be specific about achievements, not generic.`;
+
+    case 'JD':
+      return `You are Shashank Dwivedi's career coach performing a JD-fit analysis. Analyze how Shashank's profile matches the provided job description. Be honest, highlight strong matches, and address gaps tactfully.
+
+${profile}
+
+${baseStyle}
+Structure: 1) Matching skills/experience, 2) Key strengths for this role, 3) Any gaps + how Shashank addresses them. Be recruiter-friendly and maximize screen-selection chances.`;
+
+    case 'WRITING':
+      return `You are a professional career writing assistant helping Shashank Dwivedi. Write polished, human-sounding professional content.
+
+${profile}
+
+${baseStyle}
+Writing style: professional, crisp, warm, and natural. No corporate jargon. Sound like a real person wrote it, not a template.`;
+
+    case 'MIXED':
+      return `You are an intelligent AI assistant on Shashank Dwivedi's portfolio. Answer the question thoughtfully. If it relates to recruitment, hiring, or career, connect it to Shashank's experience where relevant.
+
+SHASHANK'S QUICK BIO: ${P.experience} years in IT recruitment, ${P.role} at ${P.company}, specializing in Cybersecurity & IT Infrastructure hiring globally. Clients include Fortune 500 companies.
+
+${baseStyle}`;
+
+    case 'GENERAL':
+    default:
+      return `You are an intelligent AI assistant on a portfolio website. Answer all questions helpfully and accurately.
+
+IMPORTANT RULE: If the question is NOT about Shashank's career, resume, or recruitment:
+- Start with: "Not directly related to Shashank's profile, but here's the answer:"
+- Then give a complete, accurate, helpful answer.
+- End with a brief relevant connection to Shashank's work ONLY if it naturally fits.
+
+If the question IS about recruitment, AI, technology, or careers, you may optionally relate it to Shashank's expertise naturally.
+
+${baseStyle}
+Answer like a smart, helpful human — concise, accurate, and genuinely useful.`;
   }
 }
 
-function getGenericFallback(message: string): string {
-  const q = normalizeQuery(message);
-  if (q.includes('ctc') || q.includes('salary')) return `Current CTC: ${CURRENT_CTC}, Expected CTC: ${EXPECTED_CTC}.`;
-  if (q.includes('notice')) return `Notice Period: ${NOTICE_PERIOD}.`;
-  if (q.includes('role')) return `Currently working as ${CURRENT_ROLE} at ${CURRENT_COMPANY}.`;
-  return `I am ${NAME}, a ${CURRENT_ROLE} with ${EXPERIENCE_YEARS} years of IT recruitment experience. For specific details, please contact: ${EMAIL}`;
+// ══════════════════════════════════════════════════════════════════════
+// SUGGESTED QUESTIONS — intent-aware, avoid repetition
+// ══════════════════════════════════════════════════════════════════════
+const SUGGESTION_POOLS: Record<Intent, string[]> = {
+  PROFILE: [
+    'What is your current CTC?', 'What is your expected CTC?',
+    'What is your notice period?', 'When can you join?',
+    'Are you open to remote work?', 'Are you open to relocation?',
+    'What is your preferred work location?', 'Which clients have you worked with?',
+    'What tools and ATS do you use?', 'What is your highest qualification?',
+    'Have you hired SOC Analysts?', 'What domains do you specialize in?',
+    'What is your current company?', 'Are you open to hybrid work?',
+  ],
+  CAREER: [
+    'What makes you the best candidate for this role?', 'Tell me about your leadership experience.',
+    'What are your biggest career achievements?', 'How have you contributed to business growth?',
+    'What is your experience with global hiring?', 'How do you handle high-volume recruitment?',
+    'What certifications do you have?', 'How do you manage stakeholders?',
+    'What is your experience with account management?', 'How have you grown your recruitment team?',
+    'What is your biggest achievement at Softenger?', 'Why are you the right fit for a lead role?',
+  ],
+  JD: [
+    'How does your profile match this JD?', 'What relevant experience do you have for this role?',
+    'Can you handle the responsibilities listed?', 'What tools experience do you have for this JD?',
+    'How quickly can you get up to speed?', 'What gaps do you see in your profile vs this JD?',
+    'Have you worked in this domain before?', 'Can you share examples of similar work?',
+  ],
+  GENERAL: [
+    'How can AI help in IT recruitment?', 'What are the latest trends in talent acquisition?',
+    'Which laptop is best for recruitment work?', 'How can Shashank use AI for better sourcing?',
+    'What is cybersecurity hiring?', 'Tell me about Boolean search in recruitment.',
+    'What is the difference between C2C, W2, and 1099?', 'How does ATS software work?',
+    'What is talent mapping?', 'Explain the recruitment lifecycle.',
+    'What is VMS in staffing?', 'How do you source passive candidates?',
+  ],
+  WRITING: [
+    'Can you write a follow-up email for a candidate?', 'Draft a recruiter InMail for LinkedIn.',
+    'Write a candidate screening summary.', 'Create a job description template.',
+    'Write a client submission email.', 'Draft a thank you email after interview.',
+    'Write a candidate rejection email.', 'Compose a job offer acceptance email.',
+  ],
+  MIXED: [
+    'What is Shashank\'s current role?', 'How can AI improve Shashank\'s recruitment?',
+    'What certifications does Shashank have?', 'Tell me about Shashank\'s global hiring experience.',
+    'What domains does Shashank specialize in?', 'What is Shashank\'s notice period?',
+    'Which clients has Shashank worked with?', 'Why should we hire Shashank?',
+  ],
+};
+
+function getSuggestions(intent: Intent, usedQuestions: string[]): string[] {
+  // Get candidates from current intent pool
+  const pool = [...SUGGESTION_POOLS[intent]];
+
+  // Add a few from other relevant pools for variety
+  const extra = intent === 'GENERAL'
+    ? SUGGESTION_POOLS.MIXED.slice(0, 3)
+    : SUGGESTION_POOLS.GENERAL.slice(0, 2);
+
+  const allCandidates = [...pool, ...extra];
+  const usedSet = new Set(usedQuestions);
+
+  // Filter out used, shuffle, take 4
+  const available = allCandidates.filter(q => !usedSet.has(q));
+  for (let i = available.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+  return available.slice(0, 4);
 }
 
-// ─── MAIN HANDLER ───
+// ══════════════════════════════════════════════════════════════════════
+// SPEAKABLE VERSION — clean text for TTS (no markdown, concise)
+// ══════════════════════════════════════════════════════════════════════
+function makeSpeakable(text: string, intent: Intent): string {
+  // Remove markdown formatting
+  let clean = text
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold** → bold
+    .replace(/\*(.+?)\*/g, '$1')        // *italic* → italic
+    .replace(/#{1,6}\s/g, '')           // ## headers
+    .replace(/`(.+?)`/g, '$1')          // `code`
+    .replace(/\|[^|]+\|/g, '')          // | table |
+    .replace(/[-*]\s+/g, '')            // bullet points
+    .replace(/\n{2,}/g, ' ')            // multiple newlines → space
+    .replace(/\n/g, ' ')                // single newlines
+    .replace(/\s{2,}/g, ' ')            // multiple spaces
+    .trim();
+
+  // For general questions — first 2 sentences only (keep voice concise)
+  if (intent === 'GENERAL') {
+    const sentences = clean.split(/(?<=[.!?])\s+/);
+    if (sentences.length > 3) {
+      clean = sentences.slice(0, 3).join(' ');
+    }
+  }
+
+  // Hard cap at 300 chars for voice
+  if (clean.length > 300) {
+    const cutoff = clean.lastIndexOf(' ', 290);
+    clean = clean.substring(0, cutoff > 200 ? cutoff : 290) + '.';
+  }
+
+  return clean;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SINGLE MODEL CALL
+// ══════════════════════════════════════════════════════════════════════
+async function callModel(
+  systemPrompt: string,
+  userMessage: string,
+  model: string,
+  timeoutMs = API_TIMEOUT
+): Promise<string> {
+  if (!KEY) throw new Error('NO_KEY');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://shashankdwivedi.vercel.app',
+        'X-Title': 'Shashank Portfolio AI',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        max_tokens: 400,
+        temperature: 0.5,
+      }),
+    });
+
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP_${res.status}`);
+
+    const data = await res.json();
+    const content: string = data?.choices?.[0]?.message?.content || '';
+    if (!content || content.length < 3) throw new Error('EMPTY_RESPONSE');
+    return content.trim();
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MULTI-MODEL FALLBACK — tries models in order until one succeeds
+// ══════════════════════════════════════════════════════════════════════
+async function callModelWithFallback(
+  systemPrompt: string,
+  userMessage: string,
+  primaryModel: string
+): Promise<{ text: string; modelUsed: string }> {
+  // Build trial order: primary first, then pool (skip duplicates)
+  const trials = [primaryModel, ...FREE_MODEL_POOL.filter(m => m !== primaryModel)];
+
+  for (const model of trials) {
+    try {
+      const text = await callModel(systemPrompt, userMessage, model);
+      return { text, modelUsed: model };
+    } catch {
+      // silently try next model
+      continue;
+    }
+  }
+
+  // All models failed — return a friendly fallback
+  return {
+    text: "I'm facing a temporary AI response issue, but I can still help. Please try rephrasing your question or ask something else — I'll do my best to answer.",
+    modelUsed: 'local_fallback',
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SELECT PRIMARY MODEL BY INTENT
+// ══════════════════════════════════════════════════════════════════════
+function selectModel(intent: Intent): string {
+  switch (intent) {
+    case 'PROFILE': return MODELS.fast;
+    case 'CAREER': return MODELS.advanced;
+    case 'JD': return MODELS.advanced;
+    case 'WRITING': return MODELS.advanced;
+    case 'MIXED': return MODELS.general;
+    case 'GENERAL': return MODELS.general;
+    default: return MODELS.fast;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MAIN HANDLER
+// ══════════════════════════════════════════════════════════════════════
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers — always first
+  // CORS — always first
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -212,27 +521,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const body = req.body || {};
-    const message = typeof body.message === 'string' ? body.message.trim() : '';
+    const message: string = typeof body.message === 'string' ? body.message.trim() : '';
+    const usedQuestions: string[] = Array.isArray(body.usedQuestions) ? body.usedQuestions : [];
 
     if (!message) return res.status(400).json({ error: 'Message is required' });
-    if (message.length > MAX_MESSAGE_LENGTH) return res.status(400).json({ error: 'Message too long' });
+    if (message.length > MAX_MSG_LENGTH) return res.status(400).json({ error: 'Message too long' });
 
-    // 1. Try local knowledge base first (instant, no network)
+    const intent = detectIntent(message);
+    const suggestions = getSuggestions(intent, usedQuestions);
+
+    // ── 1. Try local knowledge base first (instant, zero network) ──
     const localAnswer = getLocalAnswer(message);
     if (localAnswer) {
-      return res.status(200).json({ answer: localAnswer, source: 'knowledge_base' });
+      return res.status(200).json({
+        answer: localAnswer,
+        speakable: makeSpeakable(localAnswer, intent),
+        intent,
+        suggestions,
+        source: 'knowledge_base',
+      });
     }
 
-    // 2. Fallback to AI
-    const aiAnswer = await getAIAnswer(message);
-    return res.status(200).json({ answer: aiAnswer, source: 'ai' });
+    // ── 2. Try AI with multi-model fallback ──
+    const primaryModel = selectModel(intent);
+    const systemPrompt = buildSystemPrompt(intent, message);
+
+    // For GENERAL intent, also pass a note about the question type
+    const userPrompt = intent === 'GENERAL'
+      ? `Question from website visitor: ${message}`
+      : message;
+
+    const { text: aiAnswer, modelUsed } = await callModelWithFallback(systemPrompt, userPrompt, primaryModel);
+
+    // Clean up any "As previously asked" or history artifacts
+    const cleanAnswer = aiAnswer
+      .replace(/\b(as (previously|earlier|before) (asked|mentioned|discussed|stated))[,:]?\s*/gi, '')
+      .replace(/\b(as I (mentioned|said|explained) (before|earlier|previously))[,:]?\s*/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    return res.status(200).json({
+      answer: cleanAnswer,
+      speakable: makeSpeakable(cleanAnswer, intent),
+      intent,
+      suggestions,
+      source: 'ai',
+      model: modelUsed, // for debugging — not shown to user
+    });
 
   } catch (err) {
-    // Even on total crash — return 200 with fallback (never expose 500 to user)
-    console.error('Chat handler error:', err instanceof Error ? err.message : String(err));
+    // Final safety net — never return 500 to user
+    console.error('[chat] Unhandled error:', err instanceof Error ? err.message : String(err));
+    const fallbackText = `I'm ${P.name}, a ${P.role} with ${P.experience} years of IT recruitment experience. Please contact me at ${P.email} for detailed information.`;
     return res.status(200).json({
-      answer: `I am ${NAME}, a ${CURRENT_ROLE} with ${EXPERIENCE_YEARS} years of experience in IT recruitment. Please contact me at ${EMAIL} for detailed information.`,
-      source: 'fallback'
+      answer: fallbackText,
+      speakable: fallbackText,
+      intent: 'PROFILE',
+      suggestions: SUGGESTION_POOLS.PROFILE.slice(0, 4),
+      source: 'fallback',
     });
   }
 }

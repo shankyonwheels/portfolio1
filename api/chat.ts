@@ -36,9 +36,10 @@ const EXPERIENCE_HISTORY = `
 
 // ─── CONFIG ───
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = 'google/gemma-2-9b-it:free';
+// Use env override if set, otherwise default to nvidia nemotron (fast free tier model)
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-super-49b-v1:free';
 const MAX_MESSAGE_LENGTH = 500;
-const API_TIMEOUT = 8000;
+const API_TIMEOUT = 8000; // 8s hard cap — knowledge base answers bypass this entirely
 
 // ─── NORMALISE ───
 function normalizeQuery(q: string): string {

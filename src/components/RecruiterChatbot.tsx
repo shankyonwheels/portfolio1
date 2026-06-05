@@ -14,13 +14,13 @@ type APIResponse = {
   error?: string;
 };
 
-// ── Default suggestions shown before any conversation ──────────────────
+// ── Default suggestions ────────────────────────────────────────────────
 const DEFAULT_SUGGESTIONS: string[] = [
   'Tell me about yourself',
-  'What is your current role?',
   'What is your expected CTC?',
   'What is your notice period?',
   'Have you hired SOC Analysts?',
+  'Is Shashank suitable for this role?',
   'Are you open to remote or hybrid?',
 ];
 
@@ -47,11 +47,50 @@ const SpeechRecognitionAPI: SpeechRecognitionConstructor | undefined =
   (window as unknown as SpeechSynthesisWindow).SpeechRecognition ||
   (window as unknown as SpeechSynthesisWindow).webkitSpeechRecognition;
 
-// ═══════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
+// CLEAN TEXT FOR SPEECH — strip everything that sounds bad when read aloud
+// ══════════════════════════════════════════════════════════════════════
+function cleanTextForSpeech(text: string): string {
+  return text
+    // Strip markdown bold/italic
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    // Strip headers
+    .replace(/#{1,6}\s+/g, '')
+    // Strip code blocks and inline code
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`(.+?)`/g, '$1')
+    // Strip URLs
+    .replace(/https?:\/\/[^\s]+/g, '')
+    // Strip table rows
+    .replace(/\|[^\n]+\|/g, '')
+    // Strip markdown list bullets
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Strip intent labels and debug labels
+    .replace(/\b(PROFILE_INTENT|CAREER_INTENT|JD_INTENT|GENERAL_INTENT|MIXED_INTENT|WRITING_INTENT)\b/g, '')
+    .replace(/\bsource:\s*(knowledge_base|ai|fallback)\b/gi, '')
+    // Strip emojis
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+    // Strip special characters except sentence punctuation
+    .replace(/[#@$%^&*[\]{}\\<>~`]/g, '')
+    // Strip forward slashes used as separators
+    .replace(/\s\/\s/g, ', ')
+    // Collapse multiple spaces and newlines
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    // Strip trailing/leading whitespace
+    .trim();
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // COMPONENT
-// ═══════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 const RecruiterChatbot: React.FC = () => {
-  // ── State ────────────────────────────────────────────────────────────
+  // ── State ─────────────────────────────────────────────────────────
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -60,7 +99,7 @@ const RecruiterChatbot: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
 
-  // Session memory — tracks context within the current session only
+  // Session memory
   const usedQuestionsRef = useRef<Set<string>>(new Set());
   const sessionIntentRef = useRef<string>('PROFILE');
 
@@ -72,8 +111,9 @@ const RecruiterChatbot: React.FC = () => {
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const finalTranscriptSentRef = useRef<boolean>(false);
   const handleSendRef = useRef<((text: string) => void) | null>(null);
+  const selectedVoiceRef = useRef<SpeechSynthesisVoice | undefined>(undefined);
 
-  // ── Load chat history from localStorage ──────────────────────────────
+  // ── Load history ──────────────────────────────────────────────────
   useEffect(() => {
     const saved = localStorage.getItem('shashank_chat_history');
     if (saved) {
@@ -81,85 +121,43 @@ const RecruiterChatbot: React.FC = () => {
     }
   }, []);
 
-  // ── Persist messages + scroll to bottom ──────────────────────────────
+  // ── Persist + scroll ──────────────────────────────────────────────
   useEffect(() => {
     localStorage.setItem('shashank_chat_history', JSON.stringify(messages));
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ── Load TTS voices ───────────────────────────────────────────────────
+  // ── Load TTS voices once ──────────────────────────────────────────
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      const load = () => { voicesRef.current = window.speechSynthesis.getVoices(); };
-      load();
-      window.speechSynthesis.onvoiceschanged = load;
-    }
-  }, []);
-
-  // ── TTS: speak a clean, voice-friendly string ─────────────────────────
-  const speakText = useCallback((text: string) => {
-    if (!window.speechSynthesis || !text.trim()) return;
-
-    speechCancelRef.current = false;
-    window.speechSynthesis.cancel();
-    if (speechTimeoutRef.current) {
-      clearTimeout(speechTimeoutRef.current);
-      speechTimeoutRef.current = null;
-    }
-
-    // Split into sentences for chunked delivery (avoids TTS cutoff)
-    const sentences = text
-      .split(/(?<=[.!?])\s+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
-    if (sentences.length === 0) return;
-
-    const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices();
-    const englishVoices = voices.filter(v => v.lang?.startsWith('en-'));
-    const selectedVoice = englishVoices.length > 0 ? englishVoices[0] : (voices[0] ?? undefined);
-
-    let index = 0;
-    const speakNext = () => {
-      if (speechCancelRef.current || index >= sentences.length) {
-        setIsSpeaking(false);
-        window.dispatchEvent(new CustomEvent('ai-speaking', { detail: false }));
-        return;
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    const pickVoice = () => {
+      const all = window.speechSynthesis.getVoices();
+      voicesRef.current = all;
+      // Prefer a natural-sounding English voice
+      const preferred = [
+        'Google UK English Female', 'Google UK English Male',
+        'Google US English', 'Microsoft Zira', 'Microsoft David',
+        'Samantha', 'Karen', 'Daniel',
+      ];
+      let picked: SpeechSynthesisVoice | undefined;
+      for (const name of preferred) {
+        picked = all.find(v => v.name === name);
+        if (picked) break;
       }
-
-      const utt = new SpeechSynthesisUtterance(sentences[index]);
-      utt.lang = 'en-US';
-      if (selectedVoice) utt.voice = selectedVoice;
-      utt.rate = 1.0;
-      utt.pitch = 1.0;
-      utt.volume = 1.0;
-
-      utt.onstart = () => {
-        setIsSpeaking(true);
-        window.dispatchEvent(new CustomEvent('ai-speaking', { detail: true }));
-      };
-      utt.onend = () => {
-        if (speechCancelRef.current) {
-          setIsSpeaking(false);
-          window.dispatchEvent(new CustomEvent('ai-speaking', { detail: false }));
-          return;
-        }
-        index++;
-        speechTimeoutRef.current = setTimeout(speakNext, 50);
-      };
-      utt.onerror = () => {
-        index++;
-        if (!speechCancelRef.current) speechTimeoutRef.current = setTimeout(speakNext, 50);
-      };
-      window.speechSynthesis.speak(utt);
+      if (!picked) picked = all.find(v => v.lang.startsWith('en-'));
+      selectedVoiceRef.current = picked;
     };
-
-    setIsSpeaking(true);
-    window.dispatchEvent(new CustomEvent('ai-speaking', { detail: true }));
-    speakNext();
+    pickVoice();
+    window.speechSynthesis.onvoiceschanged = pickVoice;
   }, []);
 
-  // ── Stop TTS ─────────────────────────────────────────────────────────
+  // ── Dispatch ai-speaking event ────────────────────────────────────
+  const dispatchSpeaking = useCallback((speaking: boolean) => {
+    setIsSpeaking(speaking);
+    window.dispatchEvent(new CustomEvent('ai-speaking', { detail: speaking }));
+  }, []);
+
+  // ── Stop TTS immediately ──────────────────────────────────────────
   const stopSpeaking = useCallback(() => {
     speechCancelRef.current = true;
     window.speechSynthesis?.cancel();
@@ -167,15 +165,84 @@ const RecruiterChatbot: React.FC = () => {
       clearTimeout(speechTimeoutRef.current);
       speechTimeoutRef.current = null;
     }
-    setIsSpeaking(false);
-    window.dispatchEvent(new CustomEvent('ai-speaking', { detail: false }));
+    dispatchSpeaking(false);
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
     }
-  }, [isListening]);
+  }, [isListening, dispatchSpeaking]);
 
-  // ── Voice input ───────────────────────────────────────────────────────
+  // ── TTS: speak cleaned text ───────────────────────────────────────
+  const speakText = useCallback((text: string) => {
+    if (!window.speechSynthesis || !text.trim()) return;
+
+    // Clean the text before speaking
+    const cleanedText = cleanTextForSpeech(text);
+    if (!cleanedText.trim()) return;
+
+    // Reset state
+    speechCancelRef.current = false;
+    window.speechSynthesis.cancel();
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
+
+    // Split on sentence boundaries for chunked delivery
+    const sentences = cleanedText
+      .split(/(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    if (sentences.length === 0) return;
+
+    let index = 0;
+    const speakNext = () => {
+      if (speechCancelRef.current || index >= sentences.length) {
+        dispatchSpeaking(false);
+        return;
+      }
+
+      const utt = new SpeechSynthesisUtterance(sentences[index]);
+      utt.lang = 'en-US';
+      utt.rate = 1.08;    // slightly faster than default, still natural
+      utt.pitch = 1.00;   // neutral pitch
+      utt.volume = 1.0;
+      if (selectedVoiceRef.current) utt.voice = selectedVoiceRef.current;
+
+      // Dispatch speaking=true only when audio actually starts
+      utt.onstart = () => {
+        if (!speechCancelRef.current) {
+          dispatchSpeaking(true);
+        }
+      };
+
+      utt.onend = () => {
+        if (speechCancelRef.current) {
+          dispatchSpeaking(false);
+          return;
+        }
+        index++;
+        speechTimeoutRef.current = setTimeout(speakNext, 40);
+      };
+
+      utt.onerror = () => {
+        if (speechCancelRef.current) {
+          dispatchSpeaking(false);
+          return;
+        }
+        index++;
+        speechTimeoutRef.current = setTimeout(speakNext, 40);
+      };
+
+      window.speechSynthesis.speak(utt);
+    };
+
+    // Small delay for browser to be ready
+    speechTimeoutRef.current = setTimeout(speakNext, 80);
+  }, [dispatchSpeaking]);
+
+  // ── Voice input ───────────────────────────────────────────────────
   const toggleListen = useCallback(() => {
     if (!SpeechRecognitionAPI) {
       alert('Voice input is not supported in this browser. Please type your question.');
@@ -222,11 +289,11 @@ const RecruiterChatbot: React.FC = () => {
       try {
         recognitionRef.current.start();
         setIsListening(true);
-      } catch { /* ignore duplicate start errors */ }
+      } catch { /* ignore duplicate start */ }
     }
   }, [isListening, stopSpeaking]);
 
-  // ── Send message ──────────────────────────────────────────────────────
+  // ── Send message ──────────────────────────────────────────────────
   const handleSend = useCallback(async (text: string = inputValue) => {
     const actualText = text.trim();
     if (!actualText) return;
@@ -235,8 +302,6 @@ const RecruiterChatbot: React.FC = () => {
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsLoading(true);
-
-    // Track used questions for session deduplication
     usedQuestionsRef.current.add(actualText);
 
     try {
@@ -245,35 +310,34 @@ const RecruiterChatbot: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: actualText,
-          // Send used questions to API for suggestion deduplication
           usedQuestions: Array.from(usedQuestionsRef.current).slice(-20),
         }),
       });
 
-      const data: APIResponse = await res.json().catch(() => ({ answer: '', error: 'Parse error' }));
+      // Guard against non-JSON (Vercel timeout HTML pages)
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('json')) {
+        throw new Error('Server timeout. Please try again.');
+      }
 
-      // API now always returns 200 — even fallback responses are 200
+      const data: APIResponse = await res.json();
       const rawAnswer = data.answer || 'Sorry, I could not generate a response. Please try again.';
 
-      // Display full answer in chat
       setMessages(prev => [...prev, { role: 'assistant', content: rawAnswer }]);
 
-      // Update session intent
       if (data.intent) sessionIntentRef.current = data.intent;
-
-      // Update suggestions from API (intent-aware, pre-deduped by server)
       if (data.suggestions && data.suggestions.length > 0) {
         setSuggestions(data.suggestions);
       }
 
-      // Speak the speakable version (shorter, no markdown) — NOT the full answer
-      // This ensures: no suggested questions spoken, no markdown read aloud
-      const speakableText = data.speakable || rawAnswer;
-      speakText(speakableText);
+      // Speak the full answer — cleanTextForSpeech is applied inside speakText
+      // Use speakable if provided (already shortened for voice), else full answer
+      const toSpeak = data.speakable || rawAnswer;
+      speakText(toSpeak);
 
     } catch (err) {
       console.error('Chat error:', err);
-      const errMsg = 'Connection error. Please check your connection and try again.';
+      const errMsg = err instanceof Error ? err.message : 'Connection error. Please try again.';
       setMessages(prev => [...prev, { role: 'assistant', content: errMsg }]);
     } finally {
       setIsLoading(false);
@@ -282,7 +346,7 @@ const RecruiterChatbot: React.FC = () => {
 
   useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
 
-  // ── Clear chat ────────────────────────────────────────────────────────
+  // ── Clear chat ────────────────────────────────────────────────────
   const clearChat = () => {
     setMessages([]);
     localStorage.removeItem('shashank_chat_history');
@@ -292,7 +356,7 @@ const RecruiterChatbot: React.FC = () => {
     sessionIntentRef.current = 'PROFILE';
   };
 
-  // ── Render ────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────
   return (
     <div className='chatbot-wrapper'>
       {isOpen ? (
@@ -306,9 +370,7 @@ const RecruiterChatbot: React.FC = () => {
                 onClick={clearChat}
                 title='Clear Chat'
                 style={{ fontSize: '12px', paddingRight: '8px' }}
-              >
-                Clear
-              </button>
+              >Clear</button>
               <button className='close-button' onClick={() => setIsOpen(false)}><FaTimes /></button>
             </div>
           </div>
@@ -325,7 +387,7 @@ const RecruiterChatbot: React.FC = () => {
               </div>
             ))}
 
-            {/* Suggested questions — shown below messages, NOT spoken by TTS */}
+            {/* Suggested questions — rendered in chat, NEVER spoken by TTS */}
             {suggestions.length > 0 && (
               <div className='suggestions-after-answer'>
                 <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '6px' }}>
@@ -350,9 +412,7 @@ const RecruiterChatbot: React.FC = () => {
 
             {isLoading && (
               <div className='message-bubble assistant'>
-                <div className='loading-dots'>
-                  <span /><span /><span />
-                </div>
+                <div className='loading-dots'><span /><span /><span /></div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -360,11 +420,11 @@ const RecruiterChatbot: React.FC = () => {
 
           {/* Input area */}
           <div className='chatbot-input-area'>
-            {/* Mic / Stop button */}
             <button
               className={`icon-btn ${isListening ? 'recording' : ''} ${isSpeaking ? 'speaking' : ''}`}
               onClick={isSpeaking ? stopSpeaking : toggleListen}
-              title={isListening ? 'Listening...' : isSpeaking ? 'Stop speaking' : 'Use voice input'}
+              title={isListening ? 'Listening...' : isSpeaking ? 'Stop speaking' : 'Voice input'}
+              aria-label={isSpeaking ? 'Stop speaking' : 'Voice input'}
             >
               {isSpeaking ? <FaStopCircle /> : <FaMicrophone />}
             </button>
@@ -387,13 +447,19 @@ const RecruiterChatbot: React.FC = () => {
               onClick={() => handleSend()}
               disabled={isLoading || !inputValue.trim()}
               title='Send'
+              aria-label='Send message'
             >
               <FaPaperPlane />
             </button>
           </div>
         </div>
       ) : (
-        <button className='chatbot-button' onClick={() => setIsOpen(true)} title="Chat with Shashank's AI">
+        <button
+          className='chatbot-button'
+          onClick={() => setIsOpen(true)}
+          title="Chat with Shashank's AI"
+          aria-label="Open chatbot"
+        >
           <FaCommentDots />
         </button>
       )}

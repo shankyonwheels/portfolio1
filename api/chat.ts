@@ -150,6 +150,20 @@ function detectIntent(message: string): Intent {
   return 'GENERAL';
 }
 
+// Check if message contains actual JD content (not just asking about it)
+function hasJDContent(message: string): boolean {
+  const q = message.toLowerCase();
+  const jdSignals = [
+    'responsibilities:', 'requirements:', 'qualifications:', 'we are looking for',
+    'must have', 'nice to have', 'job title:', 'role:', 'location:', 'experience required',
+    'years of experience', 'key skills', 'about the role', 'what you will do',
+    'what we need', 'minimum qualifications', 'preferred qualifications',
+    'job description', '\n•', '\n-', 'bachelor', 'master', 'degree required',
+  ];
+  // Message must be long enough AND have JD signals to be treated as a real JD
+  return message.length > 150 && jdSignals.some(s => q.includes(s));
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // LOCAL KNOWLEDGE LOOKUP — instant answers for common recruiter questions
 // ══════════════════════════════════════════════════════════════════════
@@ -553,11 +567,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // ── 2. Try AI with multi-model fallback ──
+    // ── 2. JD intent with no actual JD content → ask recruiter to paste JD ──
+    if (intent === 'JD' && !hasJDContent(message)) {
+      const jdPrompt = `Sure! To give you an accurate fit analysis, please paste the complete Job Description below — including the role title, responsibilities, required skills, and qualifications. I'll then map Shashank's profile against it honestly and give you a screen-selection-focused assessment.`;
+      return res.status(200).json({
+        answer: jdPrompt,
+        speakable: 'Please paste the complete Job Description and I will give you an honest fit assessment for Shashank.',
+        intent: 'JD',
+        suggestions: [
+          'Is Shashank suitable for a Talent Acquisition Manager role?',
+          'Is Shashank suitable for a Cybersecurity Recruiter role?',
+          'Is Shashank suitable for an Account Manager role?',
+          'Please evaluate Shashank for a Lead IT Recruiter position.',
+        ],
+        source: 'knowledge_base',
+      });
+    }
+
+    // ── 3. Try AI with multi-model fallback ──
     const primaryModel = selectModel(intent);
     const systemPrompt = buildSystemPrompt(intent, message);
 
-    // For GENERAL intent, also pass a note about the question type
+    // For GENERAL intent, pass a note about the question type
     const userPrompt = intent === 'GENERAL'
       ? `Question from website visitor: ${message}`
       : message;

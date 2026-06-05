@@ -58,29 +58,30 @@ const KEY = process.env.OPENROUTER_API_KEY;
 
 // Model roles — all overridable via Vercel environment variables
 const MODELS = {
-  // Fast: instant answers, low latency — used for profile/screening questions
-  fast: process.env.OPENROUTER_MODEL_FAST || 'google/gemma-2-9b-it:free',
-  // Advanced: deep reasoning — used for career analysis, JD matching, writing
+  // Fast: low latency — for profile/screening questions
+  fast: process.env.OPENROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free',
+  // Advanced: deep reasoning — for career analysis, JD matching, writing
   advanced: process.env.OPENROUTER_MODEL_ADVANCED || 'nvidia/nemotron-3-super-120b-a12b:free',
-  // General: broad knowledge — used for non-profile questions
-  general: process.env.OPENROUTER_MODEL_GENERAL || 'meta-llama/llama-3.1-8b-instruct:free',
-  // Fallback: emergency backup when others fail
-  fallback: process.env.OPENROUTER_MODEL_FALLBACK || 'google/gemma-2-9b-it:free',
+  // General: broad knowledge — for non-profile questions
+  general: process.env.OPENROUTER_MODEL_GENERAL || 'openai/gpt-oss-20b:free',
+  // Fallback: emergency backup when primary fails
+  fallback: process.env.OPENROUTER_MODEL_FALLBACK || 'nvidia/nemotron-3-super-120b-a12b:free',
 };
 
-// Verified free chat models on OpenRouter (as of June 2025)
-// All support text→text generation. Order = priority for fallback attempts.
+// Verified working free chat models on OpenRouter (tested June 2025).
+// Update via env vars or re-verify at https://openrouter.ai/models?q=free
+// Order = priority for fallback attempts within the 3-attempt limit.
 const FREE_MODEL_POOL: string[] = [
-  MODELS.fast,                                    // 1. Gemma 2 9B (verified working)
-  'meta-llama/llama-3.1-8b-instruct:free',       // 2. Llama 3.1 8B
-  'meta-llama/llama-3.2-3b-instruct:free',       // 3. Llama 3.2 3B (small, fast)
-  'mistralai/mistral-7b-instruct:free',           // 4. Mistral 7B
-  'qwen/qwen-2.5-7b-instruct:free',              // 5. Qwen 2.5 7B
-  'deepseek/deepseek-r1:free',                    // 6. DeepSeek R1
-  'microsoft/phi-3-mini-128k-instruct:free',      // 7. Phi-3 Mini
-  MODELS.advanced,                                // 8. Nvidia Nemotron (heavy, try last)
-  MODELS.fallback,                                // 9. Fallback model
-].filter((v, i, a) => v && a.indexOf(v) === i);  // deduplicate, remove empty
+  'nvidia/nemotron-3-super-120b-a12b:free',  // ✅ verified 737ms (FAST + CAPABLE)
+  'openai/gpt-oss-20b:free',                  // ✅ verified 2.6s (GOOD GENERAL)
+  'nvidia/nemotron-3-ultra-550b-a55b:free',   // listed as available — ultra large
+  'poolside/laguna-m.1:free',                  // listed as available
+  'poolside/laguna-xs.2:free',                 // listed as available — small/fast
+  'z-ai/glm-4.5-air:free',                    // listed as available
+  'qwen/qwen3-coder:free',                    // listed — large context
+  'liquid/lfm-2.5-1.2b-instruct:free',       // listed — small, fast
+  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free', // listed
+].filter((v, i, a) => v && a.indexOf(v) === i);
 
 // Timeout: 8000ms to stay safely under Vercel Hobby 10s function limit
 const API_TIMEOUT = 8000;

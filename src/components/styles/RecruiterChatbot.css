@@ -259,14 +259,13 @@
   40% { transform: scale(1); }
 }
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 767px) {
   .chatbot-panel {
-    width: calc(100vw - 40px);
-    height: 80vh;
-    right: 20px;
-    left: 20px;
-    bottom: 90px;
-    max-width: none;
+    width: 380px;
+    max-width: calc(100vw - 40px);
+    height: 75vh;
+    right: 0;
+    bottom: 70px;
   }
   
   .chatbot-input-area {

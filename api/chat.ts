@@ -2,9 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { knowledgeBase } from './knowledge';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
+const OPENROUTER_MODEL = 'google/gemma-2-9b-it:free';
 const MAX_MESSAGE_LENGTH = 4000;
-const API_TIMEOUT = 30000;
+const API_TIMEOUT = 8000; // 8 seconds to prevent Vercel 10s function timeout
 
 function normalizeQuery(query: string): string {
   return query
@@ -102,20 +102,57 @@ function getKnowledgeAnswer(message: string): string | null {
   return null;
 }
 
+function getCompactKnowledge(message: string): string {
+  const lower = normalizeQuery(message);
+  let context = `Name: Shashank Dwivedi\nRole: ${knowledgeBase.personalInfo.currentRole}\n`;
+  context += `Experience: 6+ years in US/Global IT and Cybersecurity hiring.\n`;
+  context += `Current Company: Softenger (Managing a team of 15 recruiters)\n`;
+  
+  if (lower.includes('ctc') || lower.includes('salary') || lower.includes('expect')) {
+    context += `Current CTC: ${knowledgeBase.screeningInfo.currentCTC}, Expected CTC: ${knowledgeBase.screeningInfo.expectedCTC}\n`;
+  }
+  if (lower.includes('notice') || lower.includes('join')) {
+    context += `Notice Period: ${knowledgeBase.screeningInfo.noticePeriod}, Availability: ${knowledgeBase.screeningInfo.joiningAvailability}\n`;
+  }
+  if (lower.includes('location') || lower.includes('remote') || lower.includes('hybrid') || lower.includes('relocat')) {
+    context += `Location: ${knowledgeBase.screeningInfo.preferredLocation}. Preference: ${knowledgeBase.screeningInfo.workModePreference}. ${knowledgeBase.screeningInfo.openToRelocation}.\n`;
+  }
+  if (lower.includes('client') || lower.includes('worked with') || lower.includes('companies')) {
+    context += `Clients Handled: ${knowledgeBase.clients.slice(0, 12).join(', ')}, etc.\n`;
+    context += `Past Companies: GP Aarogya, Prestige Staffing, Experis, Mindlance, Head Field.\n`;
+  }
+  if (lower.includes('tool') || lower.includes('ats') || lower.includes('vms') || lower.includes('portal')) {
+    context += `Tools & Portals: ${knowledgeBase.skills.atsVms.join(', ')}, LinkedIn Recruiter, Dice, Monster.\n`;
+  }
+  if (lower.includes('role') || lower.includes('hired for') || lower.includes('domain') || lower.includes('cybersecurity') || lower.includes('soc')) {
+    context += `Hiring Domains: Cybersecurity, IT Infrastructure, SOC, NOC, VAPT, Cloud, Network Security.\n`;
+    context += `Roles Hired: Developers (Java, .NET, React, Python), Data Engineers, Project Managers, Scrum Masters, DevOps, IAM.\n`;
+  }
+  if (lower.includes('skill') || lower.includes('strength')) {
+    context += `Core Skills: End-to-end recruitment, Account Management, Stakeholder Management, Vendor Management, Boolean Search.\n`;
+  }
+  if (lower.includes('education') || lower.includes('certif')) {
+    context += `Education: MCA from Pune University (2021-2023), BCA from ISB&M (2017-2021).\n`;
+    context += `Certifications: Lean Six Sigma Green/Yellow Belt, PMP Training, Cyber Security Associate, Talent Acquisition.\n`;
+  }
+  return context;
+}
+
 async function getOpenRouterResponse(message: string): Promise<string> {
   if (!OPENROUTER_API_KEY) {
     return `This is general knowledge, not specific information from Shashank's resume/profile.`;
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
-
   try {
-    const SYSTEM_PROMPT = `You are Shashank Dwivedi's AI assistant. Use only the knowledge provided about Shashank's professional experience. Do not repeat previous conversation history. Do not mention what was asked before. Give direct, concise answers about Shashank's recruitment experience, skills, and background. For general knowledge questions, answer normally but do not claim it is from his resume.`;
+    const SYSTEM_PROMPT = `You are Shashank Dwivedi's AI Recruiter Screening Assistant. Answer questions professionally and concisely based ONLY on the provided knowledge. Do not mention "as previously asked" or "as mentioned before". If the exact answer is not in the knowledge, say "That detail is currently not updated, please contact Shashank directly for the latest information."
+    
+    KNOWLEDGE BASE FOR THIS QUERY:
+    ${getCompactKnowledge(message)}
+    `;
     
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      signal: controller.signal,
+      signal: AbortSignal.timeout(API_TIMEOUT),
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
@@ -133,8 +170,6 @@ async function getOpenRouterResponse(message: string): Promise<string> {
       })
     });
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
       return `This is general knowledge, not specific information from Shashank's resume/profile.`;
     }
@@ -142,8 +177,7 @@ async function getOpenRouterResponse(message: string): Promise<string> {
     const data = await response.json();
     return data.choices?.[0]?.message?.content || `This is general knowledge, not specific information from Shashank's resume/profile.`;
   } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
       throw { status: 504, message: 'Request timeout' };
     }
     return `This is general knowledge, not specific information from Shashank's resume/profile.`;
@@ -157,6 +191,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       hasMessage: Boolean(req.body?.message),
       messagePreview: typeof req.body?.message === "string" ? req.body.message.slice(0, 80) : null
     });
+
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
 
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed' });
@@ -199,7 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const aiAnswer = await getOpenRouterResponse(message);
       return res.status(200).json({
-        answer: `${aiAnswer} This is general knowledge, not specific information from Shashank's resume/profile.`
+        answer: aiAnswer
       });
     } catch (aiErr) {
       console.error("OpenRouter error:", aiErr instanceof Error ? aiErr.message : String(aiErr));

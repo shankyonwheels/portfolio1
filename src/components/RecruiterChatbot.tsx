@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaRobot, FaTimes, FaCommentDots, FaMicrophone, FaStopCircle, FaPaperPlane } from 'react-icons/fa';
 import './styles/RecruiterChatbot.css';
 
@@ -92,7 +92,7 @@ const RecruiterChatbot: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [suggestedQuestions, setSuggestedQuestions] = useState<Suggestion[]>(DEFAULT_SUGGESTIONS);
-    
+  const [usedSuggestions, setUsedSuggestions] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const speechCancelRef = useRef<boolean>(false);
@@ -138,20 +138,36 @@ const RecruiterChatbot: React.FC = () => {
 
   const getSuggestedQuestions = (lastAssistantAnswer: string): Suggestion[] => {
     const lower = lastAssistantAnswer.toLowerCase();
+    let candidates: Suggestion[] = [];
     
     if (lower.includes('current ctc') || lower.includes('11 lpa') || lower.includes('expected ctc') || lower.includes('16 lpa')) {
-      return [...CTC_SUGGESTIONS];
+      candidates = [...candidates, ...CTC_SUGGESTIONS];
     }
     if (lower.includes('soc') || lower.includes('cybersecurity') || lower.includes('vapt') || lower.includes('noc') || lower.includes('security engineer')) {
-      return [...SOC_SUGGESTIONS];
+      candidates = [...candidates, ...SOC_SUGGESTIONS];
     }
     if (lower.includes('experience') || lower.includes('years') || lower.includes('recruitment experience')) {
-      return [...EXPERIENCE_SUGGESTIONS];
+      candidates = [...candidates, ...EXPERIENCE_SUGGESTIONS];
     }
     if (lower.includes('current role') || lower.includes('account manager') || lower.includes('softenger') || lower.includes('currently working')) {
-      return [...ROLE_SUGGESTIONS];
+      candidates = [...candidates, ...ROLE_SUGGESTIONS];
     }
-    return [...GENERAL_SUGGESTIONS];
+    
+    // Add fallback options to ensure we have enough
+    candidates = [...candidates, ...GENERAL_SUGGESTIONS, ...DEFAULT_SUGGESTIONS, ...EXPERIENCE_SUGGESTIONS, ...SOC_SUGGESTIONS];
+
+    // Filter out already used questions and remove duplicates
+    const uniqueCandidates = Array.from(new Set(candidates.map(c => c.text)))
+      .filter(text => !usedSuggestions.has(text))
+      .map(text => ({ text }));
+
+    // Shuffle array
+    for (let i = uniqueCandidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [uniqueCandidates[i], uniqueCandidates[j]] = [uniqueCandidates[j], uniqueCandidates[i]];
+    }
+
+    return uniqueCandidates.slice(0, 4);
   };
 
   const cleanAssistantAnswer = (answer: string): string => {
@@ -197,11 +213,13 @@ const RecruiterChatbot: React.FC = () => {
     const speakNext = () => {
       if (speechCancelRef.current) {
         setIsSpeaking(false);
+        window.dispatchEvent(new CustomEvent('ai-speaking', { detail: false }));
         return;
       }
       
       if (index >= sentences.length) {
         setIsSpeaking(false);
+        window.dispatchEvent(new CustomEvent('ai-speaking', { detail: false }));
         return;
       }
       
@@ -218,10 +236,14 @@ const RecruiterChatbot: React.FC = () => {
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
-      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        window.dispatchEvent(new CustomEvent('ai-speaking', { detail: true }));
+      };
       utterance.onend = () => {
         if (speechCancelRef.current) {
           setIsSpeaking(false);
+          window.dispatchEvent(new CustomEvent('ai-speaking', { detail: false }));
           return;
         }
         index++;
@@ -236,8 +258,8 @@ const RecruiterChatbot: React.FC = () => {
       
       window.speechSynthesis.speak(utterance);
     };
-    
     setIsSpeaking(true);
+    window.dispatchEvent(new CustomEvent('ai-speaking', { detail: true }));
     speakNext();
   }, []);
   
@@ -251,6 +273,7 @@ const RecruiterChatbot: React.FC = () => {
       speechTimeoutRef.current = null;
     }
     setIsSpeaking(false);
+    window.dispatchEvent(new CustomEvent('ai-speaking', { detail: false }));
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -321,6 +344,7 @@ const RecruiterChatbot: React.FC = () => {
     setMessages(prev => [...prev, newMsg]);
     setInputValue('');
     setIsLoading(true);
+    setUsedSuggestions(prev => new Set([...prev, actualText]));
 
     try {
       const response = await fetch('/api/chat', {

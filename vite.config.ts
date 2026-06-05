@@ -5,6 +5,15 @@ export default defineConfig({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 3000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three', '@react-three/fiber', '@react-three/drei'],
+          gsap: ['gsap', '@gsap/react'],
+          vendor: ['react', 'react-dom']
+        }
+      }
+    }
   },
   server: {
     proxy: {

@@ -465,19 +465,22 @@ async function callModel(
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// MULTI-MODEL FALLBACK — tries up to 3 models, 3s probe each, safe for Vercel 10s limit
+// MULTI-MODEL FALLBACK — intent-aware timeouts to stay under Vercel 10s limit
 // ══════════════════════════════════════════════════════════════════════
 async function callModelWithFallback(
   systemPrompt: string,
   userMessage: string,
-  primaryModel: string
+  primaryModel: string,
+  intent: Intent
 ): Promise<{ text: string; modelUsed: string }> {
-  // Max 3 attempts: primary + 2 backups. Each gets 3s probe.
-  // 3 × 3s = 9s worst case — safely under Vercel 10s limit.
-  const MAX_ATTEMPTS = 3;
-  const PROBE_TIMEOUT = 3000; // 3s per model attempt
+  // Intent-aware strategy to safely fit within Vercel Hobby 10s limit:
+  // GENERAL  → 1 attempt × 7s  = 7s max  (single fast shot)
+  // MIXED    → 2 attempts × 4s  = 8s max
+  // CAREER/JD/WRITING → 2 attempts × 4s = 8s max
+  const isGeneral = intent === 'GENERAL';
+  const MAX_ATTEMPTS = isGeneral ? 1 : 2;
+  const PROBE_TIMEOUT = isGeneral ? 7000 : 4000;
 
-  // Build trial order: primary first, then pool (skip duplicates)
   const allModels = [primaryModel, ...FREE_MODEL_POOL.filter(m => m !== primaryModel)];
   const trials = allModels.slice(0, MAX_ATTEMPTS);
 
@@ -486,13 +489,15 @@ async function callModelWithFallback(
       const text = await callModel(systemPrompt, userMessage, model, PROBE_TIMEOUT);
       return { text, modelUsed: model };
     } catch {
-      continue; // silently try next
+      continue;
     }
   }
 
-  // All attempts failed — return friendly fallback (never crashes)
+  // All attempts failed — friendly fallback, never crashes
   return {
-    text: "I'm having a brief connection issue. For any question about Shashank's profile, salary, experience, or skills — just ask directly and I'll answer instantly!",
+    text: isGeneral
+      ? "I couldn't reach the AI model right now. For Shashank's profile, experience, CTC, or skills — just ask and I'll answer instantly!"
+      : "I'm having a brief connection issue. Please try again in a moment.",
     modelUsed: 'local_fallback',
   };
 }
@@ -557,7 +562,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? `Question from website visitor: ${message}`
       : message;
 
-    const { text: aiAnswer, modelUsed } = await callModelWithFallback(systemPrompt, userPrompt, primaryModel);
+    const { text: aiAnswer, modelUsed } = await callModelWithFallback(systemPrompt, userPrompt, primaryModel, intent);
 
     // Clean up any "As previously asked" or history artifacts
     const cleanAnswer = aiAnswer

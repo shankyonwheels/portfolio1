@@ -90,32 +90,121 @@ const MAX_MSG_LENGTH = 800;
 // ══════════════════════════════════════════════════════════════════════
 // INTENT DETECTION
 // ══════════════════════════════════════════════════════════════════════
-type Intent = 'PROFILE' | 'CAREER' | 'JD' | 'WRITING' | 'GENERAL' | 'MIXED';
+type Intent =
+  | 'PROFILE'
+  | 'CAREER'
+  | 'JD'
+  | 'WRITING'
+  | 'GENERAL'
+  | 'MIXED'
+  | 'BOT_IDENTITY'
+  | 'RECRUITMENT_DOMAIN'
+  | 'CYBER_IT_DOMAIN';
 
 function detectIntent(message: string): Intent {
   const q = message.toLowerCase();
 
-  // JD analysis — user pasted a job description or asks about fit
+  // ── BOT IDENTITY — questions about the assistant itself ──────────
+  // Must check FIRST so these don't fall through to GENERAL
+  const botIdentityPhrases = [
+    'what is your name', 'what\'s your name', 'whats your name',
+    'who are you', 'who r you', 'what are you',
+    'introduce yourself', 'tell me about yourself', 'tell me about you',
+    'what can you do', 'how can you help', 'what do you do',
+    'are you shashank', 'are you a bot', 'are you ai', 'are you an ai',
+    'what kind of bot', 'what kind of assistant',
+    'your purpose', 'your function', 'describe yourself',
+    'what is this bot', 'about this bot', 'about the assistant',
+    'shashank\'s assistant', 'this assistant',
+  ];
+  if (botIdentityPhrases.some(p => q.includes(p))) return 'BOT_IDENTITY';
+
+  // ── JD ANALYSIS — user pasted a job description or asks about fit ─
   if (q.includes('job description') || q.includes(' jd ') || q.includes('job desc') ||
+      q.includes('jd.') || q.includes('this jd') ||
       q.includes('am i fit') || q.includes('do i qualify') || q.includes('match this') ||
       q.includes('suitable for this role') || q.includes('suitable for the role') ||
       q.includes('fit for this role') || q.includes('right for this role') ||
       q.includes('fit for the role') || q.includes('good fit for') ||
       q.includes('evaluate shashank') || q.includes('evaluate for') ||
       q.includes('screen shashank') || q.includes('assess shashank') ||
+      q.includes('assess him') || q.includes('qualify for') ||
       q.includes('requirements:') || q.includes('responsibilities:') || q.includes('qualifications:') ||
+      (q.includes('shashank') && q.includes('match') && q.includes('jd')) ||
+      (q.includes('profile') && q.includes('right for this')) ||
+      (q.includes('profile') && q.includes('fit') && q.includes('role')) ||
+      (q.includes('shashank') && q.includes('qualify')) ||
       (q.includes('role') && q.includes('suitable')) || (q.includes('position') && q.includes('fit'))) {
     return 'JD';
   }
 
-  // Writing intent — user wants drafts, emails, messages
+  // ── WRITING — user wants drafts, emails, messages ─────────────────
   if (q.includes('write ') || q.includes('draft ') || q.includes('compose ') ||
       q.includes('email to') || q.includes('message to') || q.includes('inmail') ||
       q.includes('cover letter') || q.includes('summarize my') || q.includes('template')) {
     return 'WRITING';
   }
 
-  // Profile screening — direct recruiter screening questions
+  // ── RECRUITMENT DOMAIN — US staffing concepts related to Shashank ─
+  const recruitmentDomainKeywords = [
+    'c2c', 'corp to corp', 'corp-to-corp', 'w2', '1099',
+    'us staffing', 'us it staffing', 'tax term', 'engagement model',
+    'contract to hire', 'contract-to-hire', 'full time hiring', 'direct hire',
+    'rtr', 'right to represent', 'right-to-represent',
+    'fieldglass', 'beeline', 'bullhorn', 'jobdiva', 'ceipal', 'talentorb',
+    'vms', 'vendor management system',
+    'boolean search', 'boolean', 'x-ray search', 'xray search',
+    'sourcing', 'passive candidate', 'talent mapping',
+    'h1b', 'h-1b', 'green card', ' gc ', 'ead', 'tn visa', 'l1 visa', 'l-1',
+    'us citizen', 'authorization', 'work authorization',
+    'implementation partner', 'direct client', 'tier 1', 'tier-1',
+    'staffing agency', 'staffing model', 'recruitment lifecycle',
+    'rate negotiation', 'vendor management', 'client submission',
+    'offer coordination', 'onboarding process',
+    'recruitment funnel', 'hiring pipeline', 'talent acquisition',
+    'dice.com', 'monster.com', 'careerbuilder', 'linkedin recruiter',
+  ];
+  if (recruitmentDomainKeywords.some(k => q.includes(k))) return 'RECRUITMENT_DOMAIN';
+
+  // ── CYBER/IT DOMAIN — roles/technologies Shashank hires for ───────
+  const cyberITKeywords = [
+    // Roles — exact names (no trailing space needed)
+    'soc analyst', 'noc engineer', 'vapt', 'penetration test',
+    'sailpoint', 'identity access', 'privileged access',
+    'siem', 'splunk', 'qradar', 'sentinel', 'arcsight',
+    'cybersecurity', 'cyber security', 'network security', 'endpoint security',
+    'grc', 'isms', 'iso 27001', 'vulnerability assessment', 'vulnerability management',
+    'cloud engineer', 'cloud architect', 'aws engineer', 'azure engineer', 'gcp',
+    'devops engineer', 'devsecops', 'kubernetes', 'docker',
+    'linux admin', 'windows admin', 'vmware', 'infrastructure engineer', 'it infrastructure',
+    'database administrator', 'oracle dba', 'sql server dba',
+    'storage engineer', 'backup engineer', 'san storage', 'nas storage',
+    'data engineer', 'data pipeline', 'etl developer',
+    'java developer', 'python developer', 'dot net developer', '.net developer',
+    'react developer', 'node developer', 'full stack developer',
+    'scrum master', 'business analyst', 'project manager',
+    'firewall engineer', 'palo alto', 'fortinet', 'checkpoint firewall',
+  ];
+  const cyberShortTerms = ['soc', 'noc', 'iam', 'dba', 'etl', 'vmware'];
+  // Word-split check: splits on whitespace and punctuation to match standalone terms
+  const qWords = q.split(/[\s?!.,;:()"']+/).filter(Boolean);
+  if (cyberITKeywords.some(k => q.includes(k)) || cyberShortTerms.some(k => qWords.includes(k))) return 'CYBER_IT_DOMAIN';
+
+  // ── CAREER ANALYSIS — strategic questions about Shashank ──────────
+  const careerKeywords = [
+    'career', 'growth', 'achieve', 'accomplish',
+    'why hire', 'why should', 'best candidate', 'stand out', 'contribution',
+    'what next', 'shashank learn', 'future plan', 'roadmap', 'goal',
+    'stakeholder', 'account manag', 'global hiring', 'cybersecurity career',
+    'ai in recruitment', 'ai for shashank', 'how can shashank',
+    'leadership experience', 'leadership goal', 'manage team', 'manage a team',
+    'manage 15', 'team of 15', 'manage his team',
+    'contribute to my', 'shashank contribute', 'what can shashank',
+    'suitable for talent acquisition', 'suitable for account',
+  ];
+  if (careerKeywords.some(k => q.includes(k))) return 'CAREER';
+
+  // ── PROFILE SCREENING — direct recruiter screening questions ──────
   const profileKeywords = [
     'ctc', 'salary', 'package', 'notice period', 'notice', 'join', 'joining',
     'current role', 'present role', 'current company', 'currently working',
@@ -126,33 +215,19 @@ function detectIntent(message: string): Intent {
     'yourself', 'about shashank', 'profile', 'background', 'resume', 'cv',
     'skills', 'strength', 'availability', 'available', 'open to',
   ];
-  if (profileKeywords.some(k => q.includes(k))) {
-    // If also has analysis/career context, treat as mixed/career
-    if (q.includes('career') || q.includes('growth') || q.includes('why hire') ||
-        q.includes('achieve') || q.includes('leadership') || q.includes('goal')) {
-      return 'CAREER';
-    }
-    return 'PROFILE';
-  }
+  if (profileKeywords.some(k => q.includes(k))) return 'PROFILE';
 
-  // Career analysis — strategic, growth, achievement questions
-  const careerKeywords = [
-    'career', 'growth', 'achieve', 'accomplish', 'leadership', 'manage team',
-    'why hire', 'why should', 'best candidate', 'stand out', 'contribution',
-    'what next', 'shashank learn', 'future plan', 'roadmap', 'goal',
-    'stakeholder', 'account manag', 'vendor', 'global hiring', 'cybersecurity career',
-    'ai in recruitment', 'ai for shashank', 'how can shashank',
-  ];
-  if (careerKeywords.some(k => q.includes(k))) return 'CAREER';
-
-  // Mixed — general topic but with Shashank relevance
+  // ── MIXED — general topic with Shashank connection ────────────────
   const mixedKeywords = [
     'shashank', 'for recruitment', 'for recruiter', 'best for hiring',
     'for sourcing', 'for talent', 'for shashank',
+    // General recruitment/AI questions that connect to Shashank's work
+    'how can ai help', 'ai for recruitment', 'ai in hiring',
+    'recruitment tool', 'ats software', 'how ats works',
   ];
   if (mixedKeywords.some(k => q.includes(k))) return 'MIXED';
 
-  // Default — general knowledge question
+  // ── GENERAL — truly unrelated to Shashank's work ──────────────────
   return 'GENERAL';
 }
 
@@ -206,8 +281,13 @@ function getLocalAnswer(message: string): string | null {
   if (q.includes('total experience') || (q.includes('experience') && (q.includes('how many') || q.includes('years') || q.includes('total'))))
     return `I have ${P.experience} years of experience in US IT recruitment and global hiring across Cybersecurity, IT Infrastructure, and Staffing. I've worked with top Fortune 500 companies across 5 regions.`;
 
-  if (q.includes('about yourself') || q.includes('about shashank') || q.includes('who are you') || q.includes('introduce') || q.includes('tell me about you'))
+  if (q.includes('about yourself') || q.includes('about shashank') || q.includes('introduce') || q.includes('tell me about you'))
     return `I am ${P.name}, a ${P.role} based in ${P.location}. With ${P.experience} years in IT recruitment, I currently lead ${P.teamSize} at ${P.company}, handling Cybersecurity & IT Infrastructure hiring globally across US, Europe, Middle East, Singapore, and Malaysia.`;
+
+  // Bot identity — short-circuit so it never hits GENERAL
+  if (q.includes('who are you') || q.includes('what is your name') || q.includes('what\'s your name') ||
+      q.includes('what can you do') || q.includes('how can you help') || q.includes('are you shashank'))
+    return `I'm ${P.name}'s AI Assistant. I can help you understand his resume, experience, skills, certifications, cybersecurity hiring expertise, JD fitment, and answer general questions too. Ask me anything!`;
 
   if (q.includes('client') || (q.includes('worked with') && !q.includes('company')))
     return `I have worked with: ${P.clients}.`;
@@ -281,6 +361,28 @@ RESPONSE STYLE:
 - For voice: keep answers conversational and under 3 sentences when possible`.trim();
 
   switch (intent) {
+    case 'BOT_IDENTITY':
+      return `You are the AI Assistant on Shashank Dwivedi's portfolio website. Answer questions about your own identity, purpose, and capabilities.
+
+${baseStyle}
+Always identify yourself as Shashank Dwivedi's AI Assistant. Be warm, helpful, and engaging. List what you can help with: his resume, experience, certifications, cybersecurity hiring, JD fitment, career analysis, US staffing concepts, and general questions. NEVER say this question is not related to his profile.`;
+
+    case 'RECRUITMENT_DOMAIN':
+      return `You are an expert US IT Recruitment and Staffing consultant AND Shashank Dwivedi's AI Assistant. Answer questions about recruitment concepts, staffing models, US hiring terms, and industry tools. Where relevant, connect the answer to Shashank's experience.
+
+SHASHANK'S RECRUITMENT BACKGROUND: ${P.experience} years in US IT recruitment. Has directly worked with C2C, W2, Contract, Contract-to-Hire, and Full-Time hiring models. Tools: ${P.tools}. Clients: ${P.clients}.
+
+${baseStyle}
+DO NOT say this is unrelated to Shashank's profile — US staffing and recruitment concepts ARE directly relevant to his work. After explaining the concept, add a brief connection to Shashank's experience where appropriate.`;
+
+    case 'CYBER_IT_DOMAIN':
+      return `You are an IT and Cybersecurity domain expert AND Shashank Dwivedi's AI Assistant. Answer questions about cybersecurity roles, IT infrastructure, and technology domains. Where relevant, connect to Shashank's hiring experience in these domains.
+
+SHASHANK'S CYBER/IT HIRING BACKGROUND: He specializes in ${P.domains}. Roles hired: ${P.rolesHired}. 3+ years dedicated cybersecurity hiring at ${P.company}.
+
+${baseStyle}
+DO NOT say this is unrelated — these are domains Shashank actively hires for. Explain the concept, then briefly connect to Shashank's expertise where relevant.`;
+
     case 'PROFILE':
       return `You are Shashank Dwivedi's AI Screening Assistant. Answer recruiter questions factually and concisely using only the profile data below. Sound confident and professional.
 
@@ -340,6 +442,24 @@ Answer like a smart, helpful human — concise, accurate, and genuinely useful.`
 // SUGGESTED QUESTIONS — intent-aware, avoid repetition
 // ══════════════════════════════════════════════════════════════════════
 const SUGGESTION_POOLS: Record<Intent, string[]> = {
+  BOT_IDENTITY: [
+    'What can you help me with?', 'Tell me about Shashank.',
+    'What is Shashank\'s current role?', 'What is Shashank\'s experience?',
+    'Can I ask general questions too?', 'What domains does Shashank specialize in?',
+  ],
+  RECRUITMENT_DOMAIN: [
+    'What is the difference between C2C, W2, and 1099?', 'What is RTR in US staffing?',
+    'How does Boolean search work?', 'What is Fieldglass?',
+    'What is Shashank\'s experience in US IT staffing?', 'What is an H1B visa?',
+    'What is a direct client vs implementation partner?', 'How does VMS work?',
+    'What is contract-to-hire?', 'What is C2C?',
+  ],
+  CYBER_IT_DOMAIN: [
+    'What is a SOC Analyst?', 'What is VAPT?', 'What is IAM?',
+    'What is SIEM?', 'Has Shashank hired for NOC roles?',
+    'What cloud roles does Shashank hire for?', 'What is DevOps?',
+    'What is the difference between SOC and NOC?', 'What is a DBA?',
+  ],
   PROFILE: [
     'What is your current CTC?', 'What is your expected CTC?',
     'What is your notice period?', 'When can you join?',

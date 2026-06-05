@@ -464,29 +464,34 @@ async function callModel(
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// MULTI-MODEL FALLBACK — tries models in order until one succeeds
+// MULTI-MODEL FALLBACK — tries up to 3 models, 3s probe each, safe for Vercel 10s limit
 // ══════════════════════════════════════════════════════════════════════
 async function callModelWithFallback(
   systemPrompt: string,
   userMessage: string,
   primaryModel: string
 ): Promise<{ text: string; modelUsed: string }> {
+  // Max 3 attempts: primary + 2 backups. Each gets 3s probe.
+  // 3 × 3s = 9s worst case — safely under Vercel 10s limit.
+  const MAX_ATTEMPTS = 3;
+  const PROBE_TIMEOUT = 3000; // 3s per model attempt
+
   // Build trial order: primary first, then pool (skip duplicates)
-  const trials = [primaryModel, ...FREE_MODEL_POOL.filter(m => m !== primaryModel)];
+  const allModels = [primaryModel, ...FREE_MODEL_POOL.filter(m => m !== primaryModel)];
+  const trials = allModels.slice(0, MAX_ATTEMPTS);
 
   for (const model of trials) {
     try {
-      const text = await callModel(systemPrompt, userMessage, model);
+      const text = await callModel(systemPrompt, userMessage, model, PROBE_TIMEOUT);
       return { text, modelUsed: model };
     } catch {
-      // silently try next model
-      continue;
+      continue; // silently try next
     }
   }
 
-  // All models failed — return a friendly fallback
+  // All attempts failed — return friendly fallback (never crashes)
   return {
-    text: "I'm facing a temporary AI response issue, but I can still help. Please try rephrasing your question or ask something else — I'll do my best to answer.",
+    text: "I'm having a brief connection issue. For any question about Shashank's profile, salary, experience, or skills — just ask directly and I'll answer instantly!",
     modelUsed: 'local_fallback',
   };
 }

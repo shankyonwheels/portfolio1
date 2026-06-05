@@ -98,7 +98,13 @@ function detectIntent(message: string): Intent {
   // JD analysis — user pasted a job description or asks about fit
   if (q.includes('job description') || q.includes(' jd ') || q.includes('job desc') ||
       q.includes('am i fit') || q.includes('do i qualify') || q.includes('match this') ||
-      q.includes('requirements:') || q.includes('responsibilities:') || q.includes('qualifications:')) {
+      q.includes('suitable for this role') || q.includes('suitable for the role') ||
+      q.includes('fit for this role') || q.includes('right for this role') ||
+      q.includes('fit for the role') || q.includes('good fit for') ||
+      q.includes('evaluate shashank') || q.includes('evaluate for') ||
+      q.includes('screen shashank') || q.includes('assess shashank') ||
+      q.includes('requirements:') || q.includes('responsibilities:') || q.includes('qualifications:') ||
+      (q.includes('role') && q.includes('suitable')) || (q.includes('position') && q.includes('fit'))) {
     return 'JD';
   }
 
@@ -168,6 +174,10 @@ function hasJDContent(message: string): boolean {
 // LOCAL KNOWLEDGE LOOKUP — instant answers for common recruiter questions
 // ══════════════════════════════════════════════════════════════════════
 function getLocalAnswer(message: string): string | null {
+  // Skip local lookup for long messages that look like JDs or complex questions
+  // This prevents short keyword matches (e.g. 'remote' in a JD) from firing wrong answers
+  if (hasJDContent(message)) return null;
+
   const q = message.toLowerCase().replace(/[?!.,']+/g, '').replace(/\s+/g, ' ').trim();
 
   if ((q.includes('current ctc') || (q.includes('ctc') && !q.includes('expect'))) ||

@@ -85,7 +85,9 @@ const FREE_MODEL_POOL: string[] = [
 
 // Timeout: 8000ms to stay safely under Vercel Hobby 10s function limit
 const API_TIMEOUT = 8000;
+// Non-JD questions: 800 chars. JD pastes truncated to 4000 for AI (saves tokens).
 const MAX_MSG_LENGTH = 800;
+const MAX_JD_AI_LENGTH = 4000;
 
 // ══════════════════════════════════════════════════════════════════════
 // INTENT DETECTION
@@ -103,6 +105,10 @@ type Intent =
 
 function detectIntent(message: string): Intent {
   const q = message.toLowerCase();
+
+  // ── RAW JD PASTE — user pasted a JD without framing keywords ─────
+  // Check BEFORE other intents so long JD pastes are not mis-classified
+  if (hasJDContent(message)) return 'JD';
 
   // ── BOT IDENTITY — questions about the assistant itself ──────────
   // Must check FIRST so these don't fall through to GENERAL
@@ -235,14 +241,24 @@ function detectIntent(message: string): Intent {
 function hasJDContent(message: string): boolean {
   const q = message.toLowerCase();
   const jdSignals = [
-    'responsibilities:', 'requirements:', 'qualifications:', 'we are looking for',
-    'must have', 'nice to have', 'job title:', 'role:', 'location:', 'experience required',
-    'years of experience', 'key skills', 'about the role', 'what you will do',
-    'what we need', 'minimum qualifications', 'preferred qualifications',
-    'job description', '\n•', '\n-', 'bachelor', 'master', 'degree required',
+    // Standard JD section headers
+    'responsibilities:', 'requirements:', 'qualifications:', 'skills required:',
+    'required skills:', 'mandatory skills:', 'preferred qualifications:',
+    'minimum qualifications:', 'key skills:', 'job title:', 'position:',
+    // JD body language
+    'we are looking for', 'we are hiring', 'we are seeking', 'we seek',
+    'must have', 'nice to have', 'good to have', 'added advantage',
+    'experience required', 'years of experience', 'years experience',
+    'about the role', 'what you will do', 'what we need', 'what we offer',
+    'you will be responsible', 'you should have', 'you must have',
+    'degree required', 'bachelor', 'master', "bachelor's", "master's",
+    // Common JD formatting
+    'job description', 'employment type', 'work location', 'shift timing',
+    'salary range', 'apply now', 'equal opportunity', 'eeoc',
+    '\n•', '\n-', '\n*',
   ];
-  // Message must be long enough AND have JD signals to be treated as a real JD
-  return message.length > 150 && jdSignals.some(s => q.includes(s));
+  // Message must be long enough (>200 chars) AND have at least one JD signal
+  return message.length > 200 && jdSignals.some(s => q.includes(s));
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -405,12 +421,20 @@ ${baseStyle}
 Sound like a confident professional representing Shashank to a senior recruiter or hiring manager. Be specific about achievements, not generic.`;
 
     case 'JD':
-      return `You are Shashank Dwivedi's career coach performing a JD-fit analysis. Analyze how Shashank's profile matches the provided job description. Be honest, highlight strong matches, and address gaps tactfully.
+      return `You are Shashank Dwivedi's career coach performing a JD-fit analysis. Analyze how Shashank's profile matches the provided job description. Be honest, specific, and recruiter-friendly.
 
 ${profile}
 
+ROLES HIRED: ${P.rolesHired}
+
 ${baseStyle}
-Structure: 1) Matching skills/experience, 2) Key strengths for this role, 3) Any gaps + how Shashank addresses them. Be recruiter-friendly and maximize screen-selection chances.`;
+Response format:
+1. Overall Fit: Rate the match (Strong / Good / Partial) with one sentence of reasoning.
+2. Key Matches: List 3-5 specific skills or experiences that align directly with the JD.
+3. Strengths for This Role: 2-3 standout qualities Shashank brings beyond the basics.
+4. Gaps & How Addressed: Honestly note any gaps, then explain how Shashank's transferable skills or learning agility bridges them.
+5. Screen Recommendation: End with a confident, actionable recommendation for the recruiter.
+Be specific, not generic. Maximize Shashank's screen-selection chances.`;
 
     case 'WRITING':
       return `You are a professional career writing assistant helping Shashank Dwivedi. Write polished, human-sounding professional content.
@@ -429,17 +453,17 @@ ${baseStyle}`;
 
     case 'GENERAL':
     default:
-      return `You are an intelligent AI assistant on a portfolio website. Answer all questions helpfully and accurately.
+      return `You are an intelligent AI assistant on a professional portfolio website. Answer all questions helpfully, accurately, and conversationally.
 
-IMPORTANT RULE: If the question is NOT about Shashank's career, resume, or recruitment:
-- Start with: "Not directly related to Shashank's profile, but here's the answer:"
-- Then give a complete, accurate, helpful answer.
-- End with a brief relevant connection to Shashank's work ONLY if it naturally fits.
-
-If the question IS about recruitment, AI, technology, or careers, you may optionally relate it to Shashank's expertise naturally.
+GUIDELINES:
+- Answer directly and confidently — no unnecessary preamble.
+- Do NOT use phrases like "Not related to Shashank" or "Not directly related to his profile".
+- If the question touches recruitment, AI, technology, or careers, naturally connect it to Shashank's expertise where it fits organically.
+- For purely general knowledge questions, just answer them well — like a knowledgeable human friend would.
+- Keep answers concise but complete.
 
 ${baseStyle}
-Answer like a smart, helpful human — concise, accurate, and genuinely useful.`;
+Sound smart, warm, and genuinely helpful — not like a generic AI disclaimer bot.`;
   }
 }
 
@@ -582,8 +606,8 @@ async function callModel(
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
-        max_tokens: 600,
-        temperature: 0.5,
+        max_tokens: 800,
+        temperature: 0.55,
       }),
     });
 
@@ -668,11 +692,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const body = req.body || {};
-    const message: string = typeof body.message === 'string' ? body.message.trim() : '';
+    let message: string = typeof body.message === 'string' ? body.message.trim() : '';
     const usedQuestions: string[] = Array.isArray(body.usedQuestions) ? body.usedQuestions : [];
 
     if (!message) return res.status(400).json({ error: 'Message is required' });
-    if (message.length > MAX_MSG_LENGTH) return res.status(400).json({ error: 'Message too long' });
+
+    // ── Length check: JD pastes are much longer — detect intent first ──
+    // For JD messages, allow up to 5000 chars and truncate to 4000 for AI (saves tokens)
+    // For all other intents, keep the 800-char limit to prevent abuse
+    const earlyIntent = detectIntent(message);
+    if (earlyIntent === 'JD') {
+      // Truncate long JDs to save tokens and stay within model context
+      if (message.length > MAX_JD_AI_LENGTH) {
+        message = message.slice(0, MAX_JD_AI_LENGTH);
+      }
+    } else if (message.length > MAX_MSG_LENGTH) {
+      return res.status(200).json({
+        answer: "Your message is a bit long for me to process well. If you're pasting a Job Description, try starting your message with 'Is Shashank suitable for this role?' and then paste the JD. For questions, please keep them under 800 characters.",
+        speakable: "Your message is too long. If you are pasting a Job Description, please start with 'Is Shashank suitable for this role' and then paste the JD.",
+        intent: 'PROFILE',
+        suggestions: [
+          'Is Shashank suitable for a Lead IT Recruiter role?',
+          'Please evaluate Shashank for this position. [Paste your JD here]',
+          'What is Shashank\'s experience?',
+          'What is Shashank\'s current CTC?',
+        ],
+        source: 'knowledge_base',
+      });
+    }
 
     const intent = detectIntent(message);
     const suggestions = getSuggestions(intent, usedQuestions);

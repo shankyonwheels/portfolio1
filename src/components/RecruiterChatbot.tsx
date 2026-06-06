@@ -245,19 +245,19 @@ const RecruiterChatbot: React.FC = () => {
   }, [dispatchSpeaking]);
 
   // ── Speak single utterance (greetings) — internal helper ─────────
-  // sessionKey: if provided, set ONLY in onstart (not before)
+  // onFailed receives the error string so callers can distinguish not-allowed vs other
   const speakGreeting = useCallback((
     text: string,
     source: 'welcome' | 'chatbot',
     onStarted?: () => void,
-    onFailed?: () => void,
+    onFailed?: (errCode?: string) => void,
   ) => {
     if (!window.speechSynthesis) {
-      onFailed?.();
+      onFailed?.('unsupported');
       return;
     }
     const prepared = prepareForSpeech(text);
-    if (!prepared) { onFailed?.(); return; }
+    if (!prepared) { onFailed?.('empty'); return; }
 
     speechCancelRef.current = false;
     window.speechSynthesis.cancel();
@@ -277,56 +277,61 @@ const RecruiterChatbot: React.FC = () => {
     utt.onend   = () => { dispatchSpeaking(false, source); };
     utt.onerror = (e) => {
       const err = (e as SpeechSynthesisErrorEvent).error;
-      if (err !== 'interrupted') onFailed?.();
+      if (err !== 'interrupted') onFailed?.(err);
       dispatchSpeaking(false, source);
     };
     window.speechSynthesis.speak(utt);
   }, [dispatchSpeaking]);
 
-  // ── DUAL-GATE WELCOME GREETING ────────────────────────────────────
-  // Welcome speaks only when: characterReady=true AND speechUnlocked=true
-  // Session flag set ONLY inside utterance.onstart (never before)
+  // ── AUTO WELCOME GREETING ─────────────────────────────────────────
+  // Strategy: attempt autoplay immediately when character is ready.
+  // If browser blocks it (not-allowed), show toast so user can tap to enable.
+  // Works on: Chrome desktop, Edge, Android Chrome (autoplay OK).
+  // iOS Safari fallback: tap-to-play toast shown automatically.
+  // Session flag set ONLY inside utterance.onstart (never before).
   useEffect(() => {
     if (sessionStorage.getItem(SK_WELCOME)) return;  // already spoken this session
     if (!window.speechSynthesis) return;             // TTS not supported
 
     const INTERACTION_EVENTS = ['click', 'pointerdown', 'touchstart', 'keydown', 'scroll'] as const;
 
-    // ── Attempt welcome speech ─────────────────────────────────────
+    // ── Attempt welcome speech — NO user-interaction gate ─────────
     const attemptWelcome = () => {
-      if (!characterReadyRef.current || !speechUnlockedRef.current) return; // gates not open
-      if (welcomeBlockedRef.current) return;                                // chatbot opened first
-      if (sessionStorage.getItem(SK_WELCOME)) return;                       // already done
-      if (greetingInProgressRef.current) return;                            // in progress
+      if (!characterReadyRef.current) return;         // 3D model not ready yet
+      if (welcomeBlockedRef.current) return;          // chatbot opened first
+      if (sessionStorage.getItem(SK_WELCOME)) return; // already done
+      if (greetingInProgressRef.current) return;      // already in progress
 
       greetingInProgressRef.current = true;
-      if (DEV) console.log('[Speech] welcome queued');
+      if (DEV) console.log('[Speech] welcome attempt (autoplay)');
 
       speakGreeting(
         WELCOME_TEXT,
         'welcome',
         () => {
-          // onStarted — speech actually began
-          if (DEV) console.log('[Speech] welcome started');
-          sessionStorage.setItem(SK_WELCOME, 'true');  // set flag ONLY here
-          setShowVoiceToast(false);                    // hide toast now that speech started
+          // Speech actually started — autoplay worked
+          if (DEV) console.log('[Speech] welcome started OK');
+          sessionStorage.setItem(SK_WELCOME, 'true');
+          setShowVoiceToast(false);
+          speechUnlockedRef.current = true;
           removeInteractionListeners();
         },
-        () => {
-          // onFailed — speech was blocked/errored before starting
-          if (DEV) console.log('[Speech] blocked or failed, will retry on interaction');
-          greetingInProgressRef.current = false;  // allow retry
-          // re-bind interaction listeners so next gesture retries
-          bindInteractionListeners();
+        (errCode) => {
+          // Autoplay was blocked by browser (not-allowed) or other error
+          greetingInProgressRef.current = false;
+          if (DEV) console.log('[Speech] welcome blocked:', errCode);
+          // Show toast only when blocked — so user can tap to retry
+          if (!sessionStorage.getItem(SK_WELCOME)) {
+            setShowVoiceToast(true);
+            bindInteractionListeners(); // retry on next gesture
+          }
         }
       );
-      // onend handled inside speakGreeting; just clear in-progress flag
-      // We hook the real end via a separate listener on the 'ai-speaking' event
     };
     // Expose via ref so toast onClick can call it from JSX
     attemptWelcomeRef.current = attemptWelcome;
 
-    // ── Cleanup: remove on next speak or unmount ───────────────────
+    // ── Track end of welcome for in-progress flag ──────────────────
     const onAiSpeakingEnd = (e: Event) => {
       const ev = e as CustomEvent<{ speaking: boolean; source: string }>;
       if (!ev.detail.speaking && ev.detail.source === 'welcome') {
@@ -337,32 +342,30 @@ const RecruiterChatbot: React.FC = () => {
     };
     window.addEventListener('ai-speaking', onAiSpeakingEnd);
 
-    // ── Gate 1: Character ready ────────────────────────────────────
+    // ── Gate 1: Character ready → try autoplay immediately ─────────
     const onCharacterReady = () => {
       if (DEV) console.log('[Speech] character-ready received');
       characterReadyRef.current = true;
       window.removeEventListener('character-ready', onCharacterReady);
-      // If user hasn't interacted yet, show the voice intro toast after 1.5s
-      greetingTimerRef.current = setTimeout(() => {
-        if (!speechUnlockedRef.current && !sessionStorage.getItem(SK_WELCOME)) {
-          setShowVoiceToast(true);
-        }
-        attemptWelcome();
-      }, 800);
+      // Warm up the speech engine then attempt autoplay
+      window.speechSynthesis.cancel();
+      greetingTimerRef.current = setTimeout(attemptWelcome, 800);
     };
     window.addEventListener('character-ready', onCharacterReady);
 
-    // ── Gate 2: User interaction ───────────────────────────────────
+    // ── Fallback: user interaction retries if autoplay was blocked ─
     let interactionBound = false;
     const removeInteractionListeners = () => {
       INTERACTION_EVENTS.forEach(ev => document.removeEventListener(ev, onFirstInteraction, true));
     };
     const onFirstInteraction = () => {
-      if (speechUnlockedRef.current) return; // already unlocked
-      if (DEV) console.log('[Speech] user interaction unlocked');
+      if (speechUnlockedRef.current) return;
+      if (DEV) console.log('[Speech] user interaction — retrying welcome');
       speechUnlockedRef.current = true;
-      setShowVoiceToast(false); // hide toast — speech will now play
+      setShowVoiceToast(false);
       removeInteractionListeners();
+      // Reset in-progress so retry can proceed
+      greetingInProgressRef.current = false;
       attemptWelcome();
     };
     const bindInteractionListeners = () => {
@@ -373,14 +376,10 @@ const RecruiterChatbot: React.FC = () => {
       );
     };
 
-    // Start with interaction listeners bound immediately
-    // (unlock happens on first user gesture, then we speak if character is also ready)
-    bindInteractionListeners();
-
     // ── Safety fallback: if character-ready never fires in 12s ─────
     greetingTimerRef.current = setTimeout(() => {
       if (!characterReadyRef.current) {
-        if (DEV) console.log('[Speech] character-ready timeout, marking as ready');
+        if (DEV) console.log('[Speech] character-ready timeout — forcing attempt');
         characterReadyRef.current = true;
         attemptWelcome();
       }

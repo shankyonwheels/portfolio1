@@ -303,13 +303,29 @@ const RecruiterChatbot: React.FC = () => {
       if (greetingInProgressRef.current) return;      // already in progress
 
       greetingInProgressRef.current = true;
-      if (DEV) console.log('[Speech] welcome attempt (autoplay)');
+      if (DEV) console.log('[Speech] welcome attempt');
+
+      // ── Silent-block detector ───────────────────────────────────────
+      // Chrome/Edge silently drop speechSynthesis.speak() without
+      // firing onerror or onstart when autoplay is blocked.
+      // If onstart hasn't fired within 2.5s, treat as silently blocked.
+      let speechStarted = false;
+      const blockDetectTimer = setTimeout(() => {
+        if (!speechStarted && !sessionStorage.getItem(SK_WELCOME)) {
+          if (DEV) console.log('[Speech] silent block detected — showing toast');
+          greetingInProgressRef.current = false;
+          setShowVoiceToast(true);
+          bindInteractionListeners();
+        }
+      }, 2500);
 
       speakGreeting(
         WELCOME_TEXT,
         'welcome',
         () => {
-          // Speech actually started — autoplay worked
+          // onstart fired — speech actually started
+          speechStarted = true;
+          clearTimeout(blockDetectTimer);
           if (DEV) console.log('[Speech] welcome started OK');
           sessionStorage.setItem(SK_WELCOME, 'true');
           setShowVoiceToast(false);
@@ -317,13 +333,14 @@ const RecruiterChatbot: React.FC = () => {
           removeInteractionListeners();
         },
         (errCode) => {
-          // Autoplay was blocked by browser (not-allowed) or other error
+          // onerror fired — browser explicitly denied
+          speechStarted = true;
+          clearTimeout(blockDetectTimer);
           greetingInProgressRef.current = false;
-          if (DEV) console.log('[Speech] welcome blocked:', errCode);
-          // Show toast only when blocked — so user can tap to retry
+          if (DEV) console.log('[Speech] welcome onerror:', errCode);
           if (!sessionStorage.getItem(SK_WELCOME)) {
             setShowVoiceToast(true);
-            bindInteractionListeners(); // retry on next gesture
+            bindInteractionListeners();
           }
         }
       );
@@ -384,6 +401,10 @@ const RecruiterChatbot: React.FC = () => {
         attemptWelcome();
       }
     }, 12000);
+
+    // Bind interaction listeners immediately — so any user gesture
+    // (even before character loads or autoplay attempt) retries speech
+    bindInteractionListeners();
 
     return () => {
       if (greetingTimerRef.current) clearTimeout(greetingTimerRef.current);

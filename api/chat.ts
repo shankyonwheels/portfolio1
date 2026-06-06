@@ -295,7 +295,12 @@ function getLocalAnswer(message: string): string | null {
   if (q.includes('ats') || q.includes('vms') || q.includes('tools') || q.includes('portal') || q.includes('platform') || q.includes('software') || q.includes('bullhorn') || q.includes('jobdiva'))
     return `Tools & Portals I use: ${P.tools}.`;
 
-  if (q.includes('cybersecurity') || q.includes('cyber') || q.includes('soc') || q.includes('noc') || q.includes('vapt') || q.includes('security'))
+  // Only return profile-specific cyber answer if question is about Shashank's experience,
+  // NOT for definitional questions like "What is SOC?" (those go to CYBER_IT_DOMAIN → AI)
+  const isDefinitional = q.startsWith('what is') || q.startsWith('what are') ||
+    q.startsWith('explain') || q.startsWith('define') || q.startsWith('tell me about soc') ||
+    q.startsWith('tell me about noc') || q.startsWith('how does soc') || q.startsWith('how does iam');
+  if (!isDefinitional && (q.includes('cybersecurity') || q.includes('cyber') || q.includes('soc') || q.includes('noc') || q.includes('vapt') || q.includes('security')))
     return `Yes, Cybersecurity hiring is my core specialization. I currently handle SOC, NOC, VAPT, Cloud, Network, and Security Engineering roles at Softenger. I have 3+ years of dedicated Cybersecurity hiring experience.`;
 
   if (q.includes('domain') || q.includes('speciali') || q.includes('hiring domain'))

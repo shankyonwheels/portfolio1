@@ -13,6 +13,7 @@ interface LoadingType {
   setLoading: (percent: number) => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const LoadingContext = createContext<LoadingType | null>(null);
 
 export const LoadingProvider = ({ children }: PropsWithChildren) => {
@@ -34,6 +35,7 @@ export const LoadingProvider = ({ children }: PropsWithChildren) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useLoading = () => {
   const context = useContext(LoadingContext);
   if (!context) {

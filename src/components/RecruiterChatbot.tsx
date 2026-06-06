@@ -156,6 +156,7 @@ const RecruiterChatbot: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking]   = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
+  const [showVoiceToast, setShowVoiceToast] = useState(false);
 
   // Session memory
   const usedQuestionsRef  = useRef<Set<string>>(new Set());
@@ -179,6 +180,8 @@ const RecruiterChatbot: React.FC = () => {
   const welcomeBlockedRef      = useRef<boolean>(false); // chatbot opened before welcome
   const greetingInProgressRef  = useRef<boolean>(false); // active attempt in progress
   const greetingTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref so toast onClick can call attemptWelcome from the useEffect closure
+  const attemptWelcomeRef      = useRef<(() => void) | null>(null);
   // Dev logging shorthand (tree-shaken in prod)
   const DEV = import.meta.env.DEV;
 
@@ -301,6 +304,7 @@ const RecruiterChatbot: React.FC = () => {
           // onStarted — speech actually began
           if (DEV) console.log('[Speech] welcome started');
           sessionStorage.setItem(SK_WELCOME, 'true');  // set flag ONLY here
+          setShowVoiceToast(false);                    // hide toast now that speech started
           removeInteractionListeners();
         },
         () => {
@@ -314,6 +318,8 @@ const RecruiterChatbot: React.FC = () => {
       // onend handled inside speakGreeting; just clear in-progress flag
       // We hook the real end via a separate listener on the 'ai-speaking' event
     };
+    // Expose via ref so toast onClick can call it from JSX
+    attemptWelcomeRef.current = attemptWelcome;
 
     // ── Cleanup: remove on next speak or unmount ───────────────────
     const onAiSpeakingEnd = (e: Event) => {
@@ -331,8 +337,13 @@ const RecruiterChatbot: React.FC = () => {
       if (DEV) console.log('[Speech] character-ready received');
       characterReadyRef.current = true;
       window.removeEventListener('character-ready', onCharacterReady);
-      // Give browser 800ms after character is visible, then try
-      greetingTimerRef.current = setTimeout(attemptWelcome, 800);
+      // If user hasn't interacted yet, show the voice intro toast after 1.5s
+      greetingTimerRef.current = setTimeout(() => {
+        if (!speechUnlockedRef.current && !sessionStorage.getItem(SK_WELCOME)) {
+          setShowVoiceToast(true);
+        }
+        attemptWelcome();
+      }, 800);
     };
     window.addEventListener('character-ready', onCharacterReady);
 
@@ -345,6 +356,7 @@ const RecruiterChatbot: React.FC = () => {
       if (speechUnlockedRef.current) return; // already unlocked
       if (DEV) console.log('[Speech] user interaction unlocked');
       speechUnlockedRef.current = true;
+      setShowVoiceToast(false); // hide toast — speech will now play
       removeInteractionListeners();
       attemptWelcome();
     };
@@ -614,8 +626,34 @@ const RecruiterChatbot: React.FC = () => {
 
   // ── Render ────────────────────────────────────────────────────────
   return (
-    <div className='chatbot-wrapper'>
-      {isOpen ? (
+    <>
+      {/* Voice intro toast — shown when autoplay blocked (after character-ready but before user interaction) */}
+      {showVoiceToast && !sessionStorage.getItem(SK_WELCOME) && (
+        <div
+          className='voice-intro-toast'
+          role='button'
+          aria-label='Tap to hear the portfolio voice introduction'
+          onClick={() => {
+            speechUnlockedRef.current = true;
+            setShowVoiceToast(false);
+            attemptWelcomeRef.current?.();
+          }}
+        >
+          <span className='toast-icon'>🔊</span>
+          <span>Tap to hear the portfolio intro</span>
+          <button
+            className='toast-dismiss'
+            aria-label='Dismiss voice intro'
+            onClick={e => {
+              e.stopPropagation();
+              sessionStorage.setItem(SK_WELCOME, 'true'); // dismiss permanently for session
+              setShowVoiceToast(false);
+            }}
+          >✕</button>
+        </div>
+      )}
+      <div className='chatbot-wrapper'>
+        {isOpen ? (
         <div className='chatbot-panel'>
           {/* Header */}
           <div className='chatbot-header'>
@@ -756,6 +794,7 @@ const RecruiterChatbot: React.FC = () => {
         </button>
       )}
     </div>
+    </>
   );
 };
 

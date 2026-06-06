@@ -14,25 +14,26 @@ const setCharacter = (
   loader.setDRACOLoader(dracoLoader);
 
   const loadCharacter = () => {
-    return new Promise<GLTF | null>(async (resolve, reject) => {
-      try {
-        const encryptedBlob = await decryptFile(
-          "/models/character.enc",
-          "Character3D#@"
-        );
-        const blobUrl = URL.createObjectURL(new Blob([encryptedBlob]));
+    return new Promise<GLTF | null>((resolve, reject) => {
+      (async () => {
+        try {
+          const encryptedBlob = await decryptFile(
+            "/models/character.enc",
+            "Character3D#@"
+          );
+          const blobUrl = URL.createObjectURL(new Blob([encryptedBlob]));
 
-        let character: THREE.Object3D;
-        loader.load(
-          blobUrl,
-          async (gltf) => {
-            character = gltf.scene;
-            await renderer.compileAsync(character, camera, scene);
-            character.traverse((child: any) => {
-              if (child.isMesh) {
+          let character: THREE.Object3D;
+          loader.load(
+            blobUrl,
+            async (gltf) => {
+              character = gltf.scene;
+              await renderer.compileAsync(character, camera, scene);
+              character.traverse((child) => {
+                if ((child as THREE.Mesh).isMesh) {
                 const mesh = child as THREE.Mesh;
-                child.castShadow = true;
-                child.receiveShadow = true;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
                 mesh.frustumCulled = true;
               }
             });
@@ -49,10 +50,11 @@ const setCharacter = (
             reject(error);
           }
         );
-      } catch (err) {
-        reject(err);
-        console.error(err);
-      }
+        } catch (err) {
+          reject(err);
+          console.error(err);
+        }
+      })();
     });
   };
 

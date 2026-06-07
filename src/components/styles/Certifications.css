@@ -48,3 +48,35 @@
   color: var(--accentColor);
   font-weight: 600;
 }
+
+.cert-action {
+  margin-top: 1rem;
+}
+
+.cert-btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.view-cert-btn {
+  background: rgba(194, 164, 255, 0.1);
+  color: #c2a4ff;
+  border: 1px solid rgba(194, 164, 255, 0.3);
+}
+
+.view-cert-btn:hover {
+  background: rgba(194, 164, 255, 0.2);
+  color: #fff;
+}
+
+.pending-cert-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: #666;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: not-allowed;
+}
